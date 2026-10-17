@@ -1,0 +1,26 @@
+# Unreal
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+Plugins/**/Binaries/
+Plugins/**/Intermediate/
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+.vs/
+.vscode/
+.idea/
+*.code-workspace
+# Packaging output
+/Packaged/
+*.apk
+*.obb
+*.aab
+# OS
+Thumbs.db
+.DS_Store

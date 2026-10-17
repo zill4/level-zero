@@ -1,0 +1,18 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.8",
+	"Category": "",
+	"Description": "Level Zero - liminal-maze VR horror for PICO (VibeLab). Standalone; shares nothing with Oomi/Warlok.",
+	"Modules": [
+		{ "Name": "LevelZero", "Type": "Runtime", "LoadingPhase": "Default" }
+	],
+	"Plugins": [
+		{ "Name": "OpenXR", "Enabled": true },
+		{ "Name": "OpenXRHandTracking", "Enabled": true },
+		{ "Name": "PICOController", "Enabled": true, "SupportedTargetPlatforms": [ "Win64", "Android" ] },
+		{ "Name": "PICOOpenXR", "Enabled": true, "SupportedTargetPlatforms": [ "Win64", "Android" ] },
+		{ "Name": "OpenXREyeTracker", "Enabled": false },
+		{ "Name": "ModelingToolsEditorMode", "Enabled": true, "TargetAllowList": [ "Editor" ] }
+	],
+	"TargetPlatforms": [ "Android", "Windows" ]
+}
