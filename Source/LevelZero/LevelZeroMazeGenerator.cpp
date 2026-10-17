@@ -25,9 +25,13 @@
 #include "UnrealClient.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Misc/App.h"
+#include "NavigationSystem.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
 #if WITH_EDITOR
 #include "ShaderCompiler.h"
 #include "AssetCompilingManager.h"
+#include "ActorFactories/ActorFactory.h"
+#include "Builders/CubeBuilder.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogLevelZeroMaze, Log, All);
@@ -97,6 +101,13 @@ ALevelZeroMazeGenerator::ALevelZeroMazeGenerator()
 	ExitTrigger->SetCanEverAffectNavigation(false);
 	ExitTrigger->SetMobility(EComponentMobility::Movable);
 
+	FogShell = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("FogShell"));
+	FogShell->SetupAttachment(Root);
+	FogShell->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	FogShell->SetCanEverAffectNavigation(false);
+	FogShell->SetCastShadow(false);
+	FogShell->SetMobility(EComponentMobility::Movable);
+
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
 	if (CubeFinder.Succeeded())
 	{
@@ -124,6 +135,10 @@ void ALevelZeroMazeGenerator::BeginPlay()
 		Seed = FMath::Rand();
 	}
 	Generate();
+	if (bBuildNavOnBeginPlay)
+	{
+		BuildRuntimeNav();
+	}
 	ExitTrigger->OnComponentBeginOverlap.AddUniqueDynamic(this, &ALevelZeroMazeGenerator::HandleExitOverlap);
 
 	SetActorTickInterval(StreamUpdateInterval);
@@ -211,7 +226,13 @@ void ALevelZeroMazeGenerator::BuildLayout(FRandomStream& Rng)
 	SouthDoor.Init(false, N);
 	PillarCorners.Reset();
 
-	// 1. Perfect maze: iterative recursive backtracker.
+	// 1. Perfect maze: iterative recursive backtracker (on a half-res grid in wide mode).
+	if (bWideCorridors && Width >= 4 && Height >= 4)
+	{
+		CarveWideMaze(Rng);
+	}
+	else
+	{
 	TArray<bool> Visited;
 	Visited.Init(false, N);
 	TArray<FIntPoint> Stack;
@@ -240,6 +261,7 @@ void ALevelZeroMazeGenerator::BuildLayout(FRandomStream& Rng)
 		SetOpen(Cur, Next, true);
 		Visited[Idx(Next)] = true;
 		Stack.Push(Next);
+	}
 	}
 
 	// 2. Merged rooms and pillar halls (only remove walls, so connectivity is preserved).
@@ -310,6 +332,53 @@ void ALevelZeroMazeGenerator::BuildLayout(FRandomStream& Rng)
 	int32 D = 0;
 	StartCell = Farthest(BFS(Probe), D);
 	ExitCell = Farthest(BFS(StartCell), StartToExitDistance);
+}
+
+void ALevelZeroMazeGenerator::CarveWideMaze(FRandomStream& Rng)
+{
+	const int32 MW = Width / 2, MH = Height / 2;
+	TArray<bool> Visited;
+	Visited.Init(false, MW * MH);
+	TArray<FIntPoint> Stack;
+	const FIntPoint First(Rng.RandRange(0, MW - 1), Rng.RandRange(0, MH - 1));
+	Stack.Push(First);
+	Visited[First.Y * MW + First.X] = true;
+	while (Stack.Num() > 0)
+	{
+		const FIntPoint Cur = Stack.Last();
+		FIntPoint Options[4];
+		int32 NumOptions = 0;
+		for (const FIntPoint& D : GDirs)
+		{
+			const FIntPoint Nb = Cur + D;
+			if (Nb.X >= 0 && Nb.Y >= 0 && Nb.X < MW && Nb.Y < MH && !Visited[Nb.Y * MW + Nb.X]) { Options[NumOptions++] = Nb; }
+		}
+		if (NumOptions == 0) { Stack.Pop(EAllowShrinking::No); continue; }
+		const FIntPoint Next = Options[Rng.RandRange(0, NumOptions - 1)];
+		// Open both fine boundaries along the shared edge of the two 2x2 blocks.
+		const FIntPoint A(FMath::Min(Cur.X, Next.X), FMath::Min(Cur.Y, Next.Y));
+		for (int32 k = 0; k < 2; ++k)
+		{
+			if (Next.X != Cur.X) { SetOpen(FIntPoint(2 * A.X + 1, 2 * A.Y + k), FIntPoint(2 * A.X + 2, 2 * A.Y + k), true); }
+			else { SetOpen(FIntPoint(2 * A.X + k, 2 * A.Y + 1), FIntPoint(2 * A.X + k, 2 * A.Y + 2), true); }
+		}
+		Visited[Next.Y * MW + Next.X] = true;
+		Stack.Push(Next);
+	}
+	// Open each block's interior; sometimes keep one internal wall as a stub (a 2x2 ring minus one edge stays connected).
+	for (int32 BY = 0; BY < MH; ++BY)
+	{
+		for (int32 BX = 0; BX < MW; ++BX)
+		{
+			const FIntPoint P00(2 * BX, 2 * BY), P10(2 * BX + 1, 2 * BY), P01(2 * BX, 2 * BY + 1), P11(2 * BX + 1, 2 * BY + 1);
+			const FIntPoint Pairs[4][2] = { { P00, P10 }, { P01, P11 }, { P00, P01 }, { P10, P11 } };
+			const int32 Stub = (Rng.FRand() < StubWallChance) ? Rng.RandRange(0, 3) : -1;
+			for (int32 i = 0; i < 4; ++i) { SetOpen(Pairs[i][0], Pairs[i][1], i != Stub); }
+		}
+	}
+	// Odd sizes: attach the leftover last column/row to its neighbour.
+	for (int32 Y = 0; Y < Height; ++Y) { if (Width % 2 == 1) SetOpen(FIntPoint(Width - 2, Y), FIntPoint(Width - 1, Y), true); }
+	for (int32 X = 0; X < Width; ++X) { if (Height % 2 == 1) SetOpen(FIntPoint(X, Height - 2), FIntPoint(X, Height - 1), true); }
 }
 
 TArray<int32> ALevelZeroMazeGenerator::BFS(FIntPoint From) const
@@ -557,6 +626,63 @@ void ALevelZeroMazeGenerator::BuildMeshes(FRandomStream& Rng)
 	ExitMarker->SetRelativeScale3D(FVector(0.9f, 0.9f, 2.2f));
 	ExitTrigger->SetRelativeLocation(ExitCenter + FVector(0, 0, 150.f));
 	ExitTrigger->SetBoxExtent(FVector(CS * 0.4f, CS * 0.4f, 150.f));
+
+	// Haze shell: far enough out that distance fog has fully saturated on it.
+	FogShell->SetStaticMesh(CubeMesh);
+	FogShell->SetMaterial(0, ResolveMaterial(FogShellMaterial, FLinearColor(0.42f, 0.36f, 0.16f)));
+	FogShell->SetRelativeLocation(FVector(Width * CS * 0.5f, Height * CS * 0.5f, H * 0.5f));
+	FogShell->SetRelativeScale3D(FVector((Width * CS + 8000.f) / 100.f, (Height * CS + 8000.f) / 100.f, (H + 8000.f) / 100.f));
+}
+
+void ALevelZeroMazeGenerator::SetExitMarkerVisible(bool bVisible)
+{
+	ExitMarker->SetVisibility(bVisible);
+}
+
+// ------------------------------------------------------------------ Navigation
+
+void ALevelZeroMazeGenerator::EnsureNavMeshBounds()
+{
+#if WITH_EDITOR
+	UWorld* World = GetWorld();
+	if (!World) return;
+	ANavMeshBoundsVolume* Volume = nullptr;
+	for (TActorIterator<ANavMeshBoundsVolume> It(World); It; ++It) { Volume = *It; break; }
+	const FVector Center = GetActorTransform().TransformPosition(FVector(Width * CellSize * 0.5f, Height * CellSize * 0.5f, WallHeight * 0.5f));
+	if (!Volume)
+	{
+		Volume = World->SpawnActor<ANavMeshBoundsVolume>(Center, FRotator::ZeroRotator);
+	}
+	if (!Volume) return;
+	Volume->SetActorLocation(Center);
+	UCubeBuilder* Builder = NewObject<UCubeBuilder>();
+	Builder->X = Width * CellSize + 200.f;
+	Builder->Y = Height * CellSize + 200.f;
+	Builder->Z = WallHeight + 200.f;
+	UActorFactory::CreateBrushForVolumeActor(Volume, Builder);
+	Volume->SetActorLabel(TEXT("LevelZeroNavBounds"));
+	if (UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World))
+	{
+		Nav->OnNavigationBoundsUpdated(Volume);
+	}
+	UE_LOG(LogLevelZeroMaze, Log, TEXT("Nav bounds: %s size %.0f x %.0f x %.0f"), *Center.ToString(), Builder->X, Builder->Y, Builder->Z);
+#endif
+}
+
+bool ALevelZeroMazeGenerator::BuildRuntimeNav()
+{
+	UWorld* World = GetWorld();
+	UNavigationSystemV1* Nav = World ? FNavigationSystem::GetCurrent<UNavigationSystemV1>(World) : nullptr;
+	if (!Nav)
+	{
+		UE_LOG(LogLevelZeroMaze, Warning, TEXT("No navigation system; monster will use the cell-graph fallback"));
+		return false;
+	}
+	const double T0 = FPlatformTime::Seconds();
+	Nav->Build(); // blocks until all tiles are done
+	LastNavBuildSeconds = float(FPlatformTime::Seconds() - T0);
+	UE_LOG(LogLevelZeroMaze, Log, TEXT("Runtime nav mesh built in %.2fs"), LastNavBuildSeconds);
+	return true;
 }
 
 // ------------------------------------------------------------------ Streaming
@@ -751,6 +877,7 @@ void ALevelZeroMazeGenerator::BeginShotModeIfRequested()
 		int32 Cells = 24;
 		FParse::Value(FCommandLine::Get(), TEXT("LZFlyCells="), Cells);
 		FParse::Value(FCommandLine::Get(), TEXT("LZFlySpeed="), FlySpeed);
+		FParse::Value(FCommandLine::Get(), TEXT("LZFlyFrames="), FlyMaxFrames);
 		const TArray<FIntPoint> Path2 = FindPath(StartCell, ExitCell);
 		for (int32 i = 0; i < Path2.Num() && i < Cells; ++i) { FlyPoints.Add(GetCellCenterWorld(Path2[i], 165.f)); }
 		FApp::SetUseFixedTimeStep(true);
@@ -789,6 +916,7 @@ void ALevelZeroMazeGenerator::TickShotMode()
 			CeilingISM->SetVisibility(false);
 			LightPanelISM->SetVisibility(false);
 			DeadPanelISM->SetVisibility(false);
+			FogShell->SetVisibility(false);
 			for (TActorIterator<AExponentialHeightFog> It(GetWorld()); It; ++It) { It->GetComponent()->SetVisibility(false); }
 			Fov = 30.f;
 			const float Extent = FMath::Max(Width, Height) * CellSize * 0.55f;
@@ -873,7 +1001,9 @@ void ALevelZeroMazeGenerator::TickFlythrough(float DeltaSeconds)
 {
 	float Total = 0.f;
 	for (int32 i = 0; i + 1 < FlyPoints.Num(); ++i) { Total += FVector::Dist(FlyPoints[i], FlyPoints[i + 1]); }
-	if (!CaptureCamera || FlyDistance >= Total)
+	const bool bOutOfFrames = FlyMaxFrames > 0 && FlyFrame >= FlyMaxFrames;
+	const bool bPathDone = FlyDistance >= Total && !bFlyPaused && FlyMaxFrames <= 0;
+	if (!CaptureCamera || bOutOfFrames || bPathDone)
 	{
 		UE_LOG(LogLevelZeroMaze, Log, TEXT("Flythrough done: %d frames"), FlyFrame);
 		bFlying = false;
@@ -881,7 +1011,10 @@ void ALevelZeroMazeGenerator::TickFlythrough(float DeltaSeconds)
 		return;
 	}
 	const float Dt = 1.f / 30.f; // fixed step, independent of real frame time
-	FlyDistance += FlySpeed * Dt;
+	if (!bFlyPaused)
+	{
+		FlyDistance = FMath::Min(FlyDistance + FlySpeed * Dt, Total);
+	}
 	// Smooth the corner by averaging samples around the current distance; look ahead ~1.5 cells.
 	const FVector Pos = (SampleFly(FlyDistance - 120.f) + SampleFly(FlyDistance) * 2.f + SampleFly(FlyDistance + 120.f)) * 0.25f;
 	const FVector Ahead = SampleFly(FlyDistance + CellSize * 1.5f);

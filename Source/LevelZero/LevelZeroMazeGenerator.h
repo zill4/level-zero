@@ -55,32 +55,40 @@ public:
 	float WallThickness = 20.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Rooms")
-	int32 NumRooms = 7;
+	int32 NumRooms = 10;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Rooms")
-	FIntPoint RoomSizeMin = FIntPoint(2, 2);
+	FIntPoint RoomSizeMin = FIntPoint(3, 3);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Rooms")
-	FIntPoint RoomSizeMax = FIntPoint(5, 4);
+	FIntPoint RoomSizeMax = FIntPoint(6, 5);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Rooms")
-	int32 NumPillarHalls = 3;
+	int32 NumPillarHalls = 4;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Rooms")
 	FIntPoint PillarHallSizeMin = FIntPoint(4, 4);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Rooms")
-	FIntPoint PillarHallSizeMax = FIntPoint(7, 6);
+	FIntPoint PillarHallSizeMax = FIntPoint(8, 7);
 
 	/** Chance to knock out a remaining corridor wall, creating loops (important for chases). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze", meta = (ClampMin = 0, ClampMax = 1))
-	float LoopChance = 0.10f;
+	float LoopChance = 0.25f;
+
+	/** Carve the maze on a half-resolution grid and expand each macro cell to 2x2, giving 2-cell-wide (8 m) corridors. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze")
+	bool bWideCorridors = true;
+
+	/** Wide mode: chance to leave one internal wall stub inside a 2x2 block (breaks up the grid, keeps connectivity). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze", meta = (ClampMin = 0, ClampMax = 1))
+	float StubWallChance = 0.3f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Doorways", meta = (ClampMin = 0, ClampMax = 1))
-	float RoomDoorwayChance = 0.7f;
+	float RoomDoorwayChance = 0.5f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Doorways", meta = (ClampMin = 0, ClampMax = 1))
-	float CorridorDoorwayChance = 0.12f;
+	float CorridorDoorwayChance = 0.04f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Doorways")
 	float DoorWidth = 170.f;
@@ -103,7 +111,7 @@ public:
 	bool bStreamTiles = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Streaming", meta = (ClampMin = 1))
-	int32 StreamRadiusCells = 3;
+	int32 StreamRadiusCells = 5;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Streaming")
 	float StreamUpdateInterval = 0.1f;
@@ -140,6 +148,18 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Visuals")
 	TObjectPtr<UMaterialInterface> ExitMaterial;
+
+	/** Two-sided material on a big shell around the maze so everything past the streaming radius reads as haze. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Visuals")
+	TObjectPtr<UMaterialInterface> FogShellMaterial;
+
+	// ---------------- Navigation ----------------
+	/** Rebuild the nav mesh (blocking) right after the maze is generated at BeginPlay. Needs a NavMeshBoundsVolume (see EnsureNavMeshBounds). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Navigation")
+	bool bBuildNavOnBeginPlay = true;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Maze|Navigation")
+	float LastNavBuildSeconds = -1.f;
 
 	// ---------------- Results ----------------
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Maze|Result")
@@ -191,6 +211,24 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Maze")
 	int32 GetNumVisibleInstances() const;
 
+	/** Editor: create/resize a NavMeshBoundsVolume that covers the whole maze (called by Tools/create_level0.py). */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Maze|Navigation")
+	void EnsureNavMeshBounds();
+
+	/** Rebuild navigation for the current layout (blocking). Returns false if there is no nav system. */
+	UFUNCTION(BlueprintCallable, Category = "Maze|Navigation")
+	bool BuildRuntimeNav();
+
+	/** Debug capture (-LZFlythrough): true while frames are being written. */
+	bool IsCapturing() const { return bFlying || !FlyDir.IsEmpty(); }
+	bool IsFlying() const { return bFlying; }
+	const TArray<FVector>& GetFlyPoints() const { return FlyPoints; }
+	/** Debug capture: stop moving the camera but keep recording (e.g. after the player is caught). */
+	void PauseFlythrough() { bFlyPaused = true; }
+
+	UFUNCTION(BlueprintCallable, Category = "Maze")
+	void SetExitMarkerVisible(bool bVisible);
+
 protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void BeginPlay() override;
@@ -233,6 +271,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UBoxComponent> ExitTrigger;
 
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> FogShell;
+
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> FallbackMaterial;
 
@@ -272,6 +313,8 @@ private:
 	float FlySpeed = 160.f;
 	int32 FlyFrame = 0;
 	bool bFlying = false;
+	bool bFlyPaused = false;
+	int32 FlyMaxFrames = 0;
 	FRotator FlyRot = FRotator::ZeroRotator;
 	TObjectPtr<AActor> CaptureCamera;
 	void TickFlythrough(float DeltaSeconds);
@@ -287,6 +330,7 @@ private:
 	void CarveRect(int32 X0, int32 Y0, int32 W, int32 H, ELZCellType Type, bool bAddPillars);
 	TArray<int32> BFS(FIntPoint From) const;
 	void BuildLayout(FRandomStream& Rng);
+	void CarveWideMaze(FRandomStream& Rng);
 	void BuildMeshes(FRandomStream& Rng);
 	void ClearMeshes();
 	void AddBox(UInstancedStaticMeshComponent* ISM, const FVector& Center, const FVector& SizeCm, std::initializer_list<int32> OwnerCells, bool bCollision);

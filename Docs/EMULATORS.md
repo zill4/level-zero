@@ -34,3 +34,6 @@ $adb="$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 & $adb -s emulator-5554 logcat -d | Select-String "LevelZeroMaze|OpenXR|FATAL"
 ```
 Then repeat with the Store (arm64) APK.
+
+## Step 2 check (2026-10-17 14:32 CT): skipped, emulator busy
+`emulator-5554` was relaunched by the Oomi side at 14:08 CT. `topResumedActivity` = `io.crispcode.oomi.pico/com.epicgames.unreal.GameActivity` (Oomi in the foreground; the PICO scenario provider is also resumed). Per the rule "only if no other app is in Full Space; never force-stop Oomi", the arm64 Store APK check was **not** run. Run the commands above when `dumpsys activity activities | grep topResumedActivity` shows only the PICO launcher.

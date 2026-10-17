@@ -1,6 +1,6 @@
-"""Creates Level Zero greybox materials and the /Game/LevelZero/Maps/Level0 map.
+"""Creates Level Zero materials and the /Game/LevelZero/Maps/Level0 map.
 Run: UnrealEditor-Cmd.exe LevelZero.uproject -run=pythonscript -script="<this file>"
-Re-runnable: existing materials are reused; the map is rebuilt from scratch."""
+Re-runnable: the master material and the map are rebuilt from scratch; instances are re-parented."""
 import unreal
 
 EAL = unreal.EditorAssetLibrary
@@ -9,42 +9,105 @@ TOOLS = unreal.AssetToolsHelpers.get_asset_tools()
 MAT_DIR = '/Game/LevelZero/Materials'
 MAP_PATH = '/Game/LevelZero/Maps/Level0'
 SEED = 20261021
+FOG = (0.30, 0.26, 0.13)
+
+# Unlit, self-lit "Backrooms" shading: cheap on standalone VR (no dynamic lights), and back faces never go black.
+#  - walls: ambient + warm bounce rising toward the ceiling panels (local cube height, 0 at floor .. 1 at ceiling)
+#  - floor/ceiling: flat levels; panels: Color * EmissiveStrength
+#  - distance haze toward FogColor using view depth (stays LWC-free)
+HLSL = r'''
+float3 n = normalize(N);
+float3 c;
+if (EmissiveStrength > 0.0)
+{
+    c = Color.rgb * EmissiveStrength;
+}
+else
+{
+    float h = saturate(Loc.z / 100.0 + 0.5);
+    float isWall = 1.0 - saturate(abs(n.z) * 2.0 - 0.5);
+    float wallLight = (Ambient + Bounce * h * h) * (0.88 + 0.12 * abs(n.x));
+    float flatLight = (n.z > 0.0) ? FloorLight : CeilLight;
+    float light = lerp(flatLight, wallLight, isWall);
+    c = Color.rgb * light * float3(1.0, 0.93, 0.74);
+}
+float f = saturate((Depth - FogStart) / max(FogEnd - FogStart, 1.0));
+f = 1.0 - (1.0 - f) * (1.0 - f);
+return lerp(c, FogColor.rgb, f);
+'''
 
 
 def log(msg):
     unreal.log('LZ: ' + msg)
 
 
-def master(name, unlit):
+def scalar(m, name, value, y):
+    e = MEL.create_material_expression(m, unreal.MaterialExpressionScalarParameter, -700, y)
+    e.set_editor_property('parameter_name', name)
+    e.set_editor_property('default_value', value)
+    return e
+
+
+def vector(m, name, rgb, y):
+    e = MEL.create_material_expression(m, unreal.MaterialExpressionVectorParameter, -700, y)
+    e.set_editor_property('parameter_name', name)
+    e.set_editor_property('default_value', unreal.LinearColor(*rgb, 1.0))
+    return e
+
+
+def build_master():
+    name = 'M_LZ_Surface'
     path = f'{MAT_DIR}/{name}'
     if EAL.does_asset_exist(path):
-        return unreal.load_asset(path)
+        EAL.delete_asset(path)
     m = TOOLS.create_asset(name, MAT_DIR, unreal.Material, unreal.MaterialFactoryNew())
-    color = MEL.create_material_expression(m, unreal.MaterialExpressionVectorParameter, -500, 0)
-    color.set_editor_property('parameter_name', 'Color')
-    color.set_editor_property('default_value', unreal.LinearColor(1, 1, 1, 1))
-    if unlit:
-        m.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
-        inten = MEL.create_material_expression(m, unreal.MaterialExpressionScalarParameter, -500, 250)
-        inten.set_editor_property('parameter_name', 'Intensity')
-        inten.set_editor_property('default_value', 1.0)
-        mul = MEL.create_material_expression(m, unreal.MaterialExpressionMultiply, -250, 0)
-        MEL.connect_material_expressions(color, '', mul, 'A')
-        MEL.connect_material_expressions(inten, '', mul, 'B')
-        MEL.connect_material_property(mul, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
-    else:
-        MEL.connect_material_property(color, '', unreal.MaterialProperty.MP_BASE_COLOR)
-        rough = MEL.create_material_expression(m, unreal.MaterialExpressionConstant, -500, 250)
-        rough.set_editor_property('r', 0.92)
-        MEL.connect_material_property(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
+    m.set_editor_property('shading_model', unreal.MaterialShadingModel.MSM_UNLIT)
+    m.set_editor_property('two_sided', True)
     m.set_editor_property('used_with_instanced_static_meshes', True)
+
+    cust = MEL.create_material_expression(m, unreal.MaterialExpressionCustom, -250, 0)
+    cust.set_editor_property('code', HLSL)
+    cust.set_editor_property('output_type', unreal.CustomMaterialOutputType.CMOT_FLOAT3)
+    cust.set_editor_property('description', 'LZ_BackroomsLight')
+    names = ['Color', 'N', 'Loc', 'Depth', 'EmissiveStrength', 'Ambient', 'Bounce', 'FloorLight', 'CeilLight', 'FogStart', 'FogEnd', 'FogColor']
+    inputs = []
+    for n in names:
+        ci = unreal.CustomInput()
+        ci.set_editor_property('input_name', n)
+        inputs.append(ci)
+    cust.set_editor_property('inputs', inputs)
+
+    src = {
+        'Color': vector(m, 'Color', (1, 1, 1), 0),
+        'N': MEL.create_material_expression(m, unreal.MaterialExpressionVertexNormalWS, -700, 120),
+        'Depth': MEL.create_material_expression(m, unreal.MaterialExpressionPixelDepth, -700, 240),
+        'EmissiveStrength': scalar(m, 'EmissiveStrength', 0.0, 360),
+        'Ambient': scalar(m, 'Ambient', 0.38, 440),
+        'Bounce': scalar(m, 'Bounce', 0.62, 520),
+        'FloorLight': scalar(m, 'FloorLight', 0.62, 600),
+        'CeilLight': scalar(m, 'CeilLight', 0.80, 680),
+        'FogStart': scalar(m, 'FogStart', 500.0, 760),
+        'FogEnd': scalar(m, 'FogEnd', 3400.0, 840),
+        'FogColor': vector(m, 'FogColor', FOG, 920),
+    }
+    try:
+        src['Loc'] = MEL.create_material_expression(m, unreal.MaterialExpressionLocalPosition, -700, 1040)
+    except Exception as ex:  # older API: walls fall back to mid-height brightness
+        log(f'LocalPosition unavailable ({ex}); using constant')
+        k = MEL.create_material_expression(m, unreal.MaterialExpressionConstant3Vector, -700, 1040)
+        src['Loc'] = k
+    for n in names:
+        ok = MEL.connect_material_expressions(src[n], '', cust, n)
+        if not ok:
+            raise RuntimeError(f'LZ: could not connect custom input {n}')
+    MEL.connect_material_property(cust, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     MEL.recompile_material(m)
     EAL.save_loaded_asset(m)
-    log(f'created {path}')
+    log(f'created {path} ({MEL.get_num_material_expressions(m)} expressions)')
     return m
 
 
-def instance(name, parent, color, intensity=None):
+def instance(name, parent, color, emissive=0.0):
     path = f'{MAT_DIR}/{name}'
     if EAL.does_asset_exist(path):
         mi = unreal.load_asset(path)
@@ -52,31 +115,41 @@ def instance(name, parent, color, intensity=None):
         mi = TOOLS.create_asset(name, MAT_DIR, unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
         log(f'created {path}')
     MEL.set_material_instance_parent(mi, parent)
+    MEL.clear_all_material_instance_parameters(mi)
     MEL.set_material_instance_vector_parameter_value(mi, 'Color', unreal.LinearColor(*color, 1.0))
-    if intensity is not None:
-        MEL.set_material_instance_scalar_parameter_value(mi, 'Intensity', intensity)
+    if emissive > 0:
+        MEL.set_material_instance_scalar_parameter_value(mi, 'EmissiveStrength', emissive)
     MEL.update_material_instance(mi)
     EAL.save_loaded_asset(mi)
     return mi
 
 
-lit = master('M_LZ_Greybox', False)
-emis = master('M_LZ_Emissive', True)
+surface = build_master()
 mats = {
-    'wall_material': instance('MI_LZ_Wallpaper', lit, (0.78, 0.68, 0.36)),
-    'floor_material': instance('MI_LZ_Carpet', lit, (0.40, 0.34, 0.17)),
-    'ceiling_material': instance('MI_LZ_CeilingTile', lit, (0.80, 0.77, 0.64)),
-    'door_frame_material': instance('MI_LZ_DoorFrame', lit, (0.60, 0.51, 0.27)),
-    'light_panel_material': instance('MI_LZ_LightPanel', emis, (1.0, 0.95, 0.78), 4.0),
-    'dead_panel_material': instance('MI_LZ_DeadPanel', emis, (0.22, 0.21, 0.17), 1.0),
-    'exit_material': instance('MI_LZ_Exit', emis, (0.25, 1.0, 0.4), 6.0),
+    'wall_material': instance('MI_LZ_Wallpaper', surface, (0.80, 0.70, 0.38)),
+    'floor_material': instance('MI_LZ_Carpet', surface, (0.46, 0.39, 0.20)),
+    'ceiling_material': instance('MI_LZ_CeilingTile', surface, (0.82, 0.79, 0.66)),
+    'door_frame_material': instance('MI_LZ_DoorFrame', surface, (0.66, 0.56, 0.30)),
+    'light_panel_material': instance('MI_LZ_LightPanel', surface, (1.0, 0.95, 0.78), 3.5),
+    'dead_panel_material': instance('MI_LZ_DeadPanel', surface, (0.22, 0.21, 0.17), 1.0),
+    'exit_material': instance('MI_LZ_Exit', surface, (0.25, 1.0, 0.4), 5.0),
+    'fog_shell_material': instance('MI_LZ_FogShell', surface, FOG),
 }
+monster_body = instance('MI_LZ_Monster', surface, (0.03, 0.026, 0.02))
+monster_eyes = instance('MI_LZ_MonsterEyes', surface, (0.85, 0.9, 1.0), 2.5)
+for old in ('M_LZ_Greybox', 'M_LZ_Emissive'):  # step-1 masters, superseded by M_LZ_Surface
+    if EAL.does_asset_exist(f'{MAT_DIR}/{old}'):
+        EAL.delete_asset(f'{MAT_DIR}/{old}')
+        log(f'deleted old {old}')
 
 # ---- Map
 les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
 if EAL.does_asset_exist(MAP_PATH):
-    EAL.delete_asset(MAP_PATH)
+    # Level0 is the editor startup map, so it is loaded now: switch to a blank map before deleting it.
+    unreal.EditorLoadingAndSavingUtils.new_blank_map(False)
+    if not EAL.delete_asset(MAP_PATH):
+        raise RuntimeError('LZ: could not delete old ' + MAP_PATH)
 ok = les.new_level(MAP_PATH)
 log(f'new_level -> {ok}')
 if not ok:
@@ -90,28 +163,13 @@ gen.set_editor_property('player_start_actor', player_start)
 for k, v in mats.items():
     gen.set_editor_property(k, v)
 gen.generate()
+gen.ensure_nav_mesh_bounds()
 
-# Dim, warm, shadowless key light; the emissive panels sell the fluorescent look.
-sun = eas.spawn_actor_from_class(unreal.DirectionalLight, unreal.Vector(0, 0, 1000), unreal.Rotator(roll=0, pitch=-65, yaw=35))
-sun.set_actor_label('LZ_WarmFill')
-lc = sun.get_component_by_class(unreal.DirectionalLightComponent)
-lc.set_mobility(unreal.ComponentMobility.MOVABLE)
-lc.set_intensity(2.5)
-lc.set_light_color(unreal.LinearColor(1.0, 0.86, 0.58, 1.0))
-lc.set_cast_shadows(False)
-
-fog = eas.spawn_actor_from_class(unreal.ExponentialHeightFog, unreal.Vector(0, 0, 0))
-fog.set_actor_label('LZ_YellowFog')
-fc = fog.get_component_by_class(unreal.ExponentialHeightFogComponent)
-fc.set_editor_property('fog_density', 0.12)
-fc.set_editor_property('fog_height_falloff', 0.001)
-for prop in ('fog_inscattering_luminance', 'fog_inscattering_color'):
-    try:
-        fc.set_editor_property(prop, unreal.LinearColor(0.32, 0.27, 0.12, 1.0))
-        break
-    except Exception:
-        pass
-fc.set_editor_property('start_distance', 150.0)
+director = eas.spawn_actor_from_class(unreal.LevelZeroGameDirector, unreal.Vector(0, 0, 0))
+director.set_actor_label('LevelZeroDirector')
+director.set_editor_property('maze', gen)
+director.set_editor_property('monster_body_material', monster_body)
+director.set_editor_property('monster_eye_material', monster_eyes)
 
 ppv = eas.spawn_actor_from_class(unreal.PostProcessVolume, unreal.Vector(0, 0, 0))
 ppv.set_actor_label('LZ_PostProcess')
@@ -124,7 +182,7 @@ s.set_editor_property('auto_exposure_apply_physical_camera_exposure', False)
 s.set_editor_property('override_auto_exposure_bias', True)
 s.set_editor_property('auto_exposure_bias', 0.0)
 s.set_editor_property('override_vignette_intensity', True)
-s.set_editor_property('vignette_intensity', 0.5)
+s.set_editor_property('vignette_intensity', 0.4)
 ppv.set_editor_property('settings', s)
 
 saved = les.save_current_level()

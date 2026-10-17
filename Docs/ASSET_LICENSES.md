@@ -9,7 +9,9 @@ Every third-party or generated asset that ships in Level Zero gets a row. Requir
 |---|---|---|---|---|---|
 | Content/XRFramework, VRSpectator, XRMannequins, Weapons, LevelPrototyping | Unreal Engine 5.8 VR template | UE EULA (engine content, ok to ship in UE projects) | 2026-10-17 | Engine install | Template packs; prune unused (Weapons) before ship |
 | /Engine/BasicShapes/Cube, BasicShapeMaterial | Unreal Engine 5.8 | UE EULA | 2026-10-17 | Engine content | Greybox maze modules (instanced) |
-| Content/LevelZero/Materials/* (M_LZ_Greybox, M_LZ_Emissive + 7 instances) | Made for Level Zero (Tools/create_level0.py) | Own work | 2026-10-17 | Git history | Flat-colour greybox only |
+| Content/LevelZero/Materials/* (M_LZ_Surface + 10 instances: wallpaper, carpet, ceiling, door frame, light/dead panel, exit, fog shell, monster, monster eyes) | Made for Level Zero (Tools/create_level0.py) | Own work | 2026-10-17 | Git history | Step 2: self-lit unlit master replaces M_LZ_Greybox / M_LZ_Emissive (deleted) |
+| /Engine/BasicShapes/Cylinder, Sphere | Unreal Engine 5.8 | UE EULA | 2026-10-17 | Engine content | Placeholder monster silhouette (until the Tripo model) |
+| Engine default TextRender font/material | Unreal Engine 5.8 | UE EULA | 2026-10-17 | Engine content | Caught / Escaped cards |
 
 ## Available in Justin's library (VaultCache on zill4, not imported)
 License for all Fab library items: **Fab Standard License** (use inside a shipped game; no standalone redistribution). Before **any** Tripo/AI use of a pack, check its Fab listing's "Allows usage with AI" flag: "No" means it must never be fed to a generator. The local cache doesn't record that flag.

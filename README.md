@@ -61,12 +61,15 @@ Not in V1: story, multiple levels, collectibles, monster variants, save system.
 - [ ] Get PICO's written OK for Unreal (and horror content / age rating) before Oct 21
 - [x] `Level0` map (`/Game/LevelZero/Maps/Level0`) is the editor + game startup map
 - [x] `ALevelZeroMazeGenerator` (C++): seeded 30x30 maze, merged rooms, pillar halls, doorways, ceiling panels, BFS start/exit, `FindPath` for AI
-- [x] Tile streaming: modules beyond 3 cells (Chebyshev) of the camera are collapsed; collision stays on an invisible ISM
+- [x] Tile streaming: modules beyond 7 cells (was 3) (Chebyshev) of the camera are collapsed; collision stays on an invisible ISM
 - [ ] 6 greybox modules (wall 2 m / 4 m, pillar, doorway, ceiling tile w/ light, floor) - our own art, emissive panels with baked AO in texture
 - [ ] Atmosphere: hum loop, flicker component, exponential height fog, footstep surface sounds (CC0 / recorded; log in Docs/ASSET_LICENSES.md)
-- [ ] `ALZMonster` + `ALZMonsterAIController`: AIPerception (Hearing + Sight), Behavior Tree, grid A* or runtime NavMesh (`Navigation Mesh` set to Dynamic)
-- [ ] `ULZNoiseEmitter` on the pawn: MakeNoise loudness from locomotion speed
-- [ ] Death + Escaped screens (UMG in world space), restart flow
+- [x] Look pass: 2-cell-wide corridors, more loops/rooms, self-lit warm materials (no black back faces), distance haze + fog shell
+- [x] Runtime nav mesh (Dynamic; rebuilt right after the maze generates); VR teleport projects onto it (self-test 100/100)
+- [x] `ALevelZeroMonster` + `ALevelZeroMonsterAI`: placeholder silhouette; Wander / Investigate (noise) / Chase (sight) / Search -> give up after 4 s out of sight
+- [x] Player noise from head movement (walk quiet 6 m, sprint loud 24 m, teleport landing 10 m) via `ALevelZeroGameDirector`
+- [x] Caught + Escaped screens (world-space card that lazily follows the head), auto-restart
+- [ ] Swap the placeholder monster for the Tripo model (keep capsule 34 x 125)
 - [ ] EN/ZH localization (Localization Dashboard, Noto Sans SC OFL font)
 - [ ] Comfort: vignette default on, snap turn default, teleport option, recenter
 - [ ] Tripo concept -> monster mesh (< 15k tris), retopo, rig, idle/walk/run/lunge
@@ -78,3 +81,10 @@ Not in V1: story, multiple levels, collectibles, monster variants, save system.
 - `Tools/create_level0.py` rebuilds materials + `Level0`; `Tools/verify_level0.py` is the headless check (`LZ_VERIFY_OK`).
 - Captures (offscreen, no window): `UnrealEditor.exe LevelZero.uproject /Game/LevelZero/Maps/Level0 -game -RenderOffscreen -ResX=1280 -ResY=720 -nohmd -LZFlythrough=C:/tmp/fly [-LZFlyCells=16 -LZFlySpeed=200]` writes PNG frames along the start->exit path (encode with ffmpeg). `-LZShot=<png> [-LZTopDown]` writes a still.
 - Android: see `Docs/EMULATORS.md` (PICO emulator yes / Android XR emulator no) and `Tools/package_android.ps1 -Variant Store|Emulator`.
+## Step 2: look pass, nav mesh, monster, round flow (done 2026-10-17)
+- **Openness:** `bWideCorridors` carves the maze on a 15x15 macro grid and expands each macro cell to 2x2 (8 m corridors), with 30% internal wall stubs, 25% loops, 10 rooms (3-6 x 3-5) and 4 pillar halls. Seed 20261021: 384 wall segments (step 1: 767), 85% of interior boundaries open, start/exit 59 BFS steps apart.
+- **Look:** a single unlit master `M_LZ_Surface` (Custom HLSL node): ambient + warm bounce rising toward the ceiling panels on walls, flat floor/ceiling levels, emissive panels, distance haze (500-3400 cm) toward a dim yellow. Every face is lit the same way, so nothing goes black. No dynamic lights (cheap on standalone VR). A two-sided fog shell around the maze, plus streaming at 7 cells, hides the edge of the streamed tiles.
+- **Nav:** `NavMeshBoundsVolume` covering the maze (made by `EnsureNavMeshBounds()` from the create script), `RecastNavMesh RuntimeGeneration=Dynamic`, `BuildRuntimeNav()` (blocking `UNavigationSystemV1::Build`) right after the BeginPlay generate: 0.04-0.10 s on the 3900X. The director logs a self-test: teleport projection onto the nav mesh at 100/100 sample cells, plus a start->exit nav path.
+- **Monster** (`LevelZeroMonster.*`, `LevelZeroMonsterAI.*`): 2.6 m primitive silhouette (capsule r34 / hh125, matches the default nav agent), pale eyes. Speeds 140 wander / 220 investigate / 330 chase. Sight: 20 m, 70 degree half-cone (or within 3.5 m), line trace at about 1.65 m. Loses the player after 4 s out of sight, searches the last known spot, then wanders. Falls back to the maze cell graph if a nav move fails.
+- **Round flow** (`LevelZeroGameDirector.*`): spawns the monster at least 14 BFS cells from the start, turns head speed into noise, catch within 95 cm, exit within 0.45 cell; caught (red) / escaped (green, with time) card 1.2 m ahead; restarts after 5 s / 8 s.
+- **Captures:** `-LZFlythrough=<dir> -LZFlyCells=40 -LZFlySpeed=150 -LZFlyFrames=900 -LZMonsterCell=14` puts the monster on the route (it holds position until it spots the camera). `-LZNoMonster` tests the exit/win path. The round starts on the first recorded frame.
