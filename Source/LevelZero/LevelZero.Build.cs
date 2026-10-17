@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class LEVELZERO : ModuleRules
+public class LevelZero : ModuleRules
 {
-	public LEVELZERO(ReadOnlyTargetRules Target) : base(Target)
+	public LevelZero(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	

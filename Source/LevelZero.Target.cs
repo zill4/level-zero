@@ -3,13 +3,13 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
-public class LEVELZEROTarget : TargetRules
+public class LevelZeroTarget : TargetRules
 {
-	public LEVELZEROTarget(TargetInfo Target) : base(Target)
+	public LevelZeroTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Game;
 		DefaultBuildSettings = BuildSettingsVersion.V7;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
-		ExtraModuleNames.Add("LEVELZERO");
+		ExtraModuleNames.Add("LevelZero");
 	}
 }
