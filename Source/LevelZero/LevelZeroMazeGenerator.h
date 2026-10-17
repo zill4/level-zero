@@ -262,10 +262,20 @@ private:
 	int32 NumWallSegments = 0;
 	double LastGenerateMs = 0.0;
 
-	// Debug capture (-LZShot=<png> [-LZTopDown])
+	// Debug capture: -LZShot=<png> [-LZTopDown]  |  -LZFlythrough=<dir> [-LZFlyCells=N] [-LZFlySpeed=cm/s]
 	FTimerHandle ShotTimer;
 	FString PendingShotPath;
 	bool bShotTopDown = false;
+	FString FlyDir;
+	TArray<FVector> FlyPoints;
+	float FlyDistance = 0.f;
+	float FlySpeed = 160.f;
+	int32 FlyFrame = 0;
+	bool bFlying = false;
+	FRotator FlyRot = FRotator::ZeroRotator;
+	TObjectPtr<AActor> CaptureCamera;
+	void TickFlythrough(float DeltaSeconds);
+	FVector SampleFly(float Distance) const;
 	int32 ShotPhase = 0;
 	float ShotElapsed = 0.f;
 	float ShotQuietTime = 0.f;

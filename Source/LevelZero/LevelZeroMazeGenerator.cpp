@@ -24,6 +24,7 @@
 #include "TimerManager.h"
 #include "UnrealClient.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Misc/App.h"
 #if WITH_EDITOR
 #include "ShaderCompiler.h"
 #include "AssetCompilingManager.h"
@@ -141,6 +142,10 @@ void ALevelZeroMazeGenerator::BeginPlay()
 void ALevelZeroMazeGenerator::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (bFlying)
+	{
+		TickFlythrough(DeltaSeconds);
+	}
 	UpdateStreaming(false);
 }
 
@@ -741,6 +746,24 @@ FString ALevelZeroMazeGenerator::GetStatsString() const
 void ALevelZeroMazeGenerator::BeginShotModeIfRequested()
 {
 	FString Path;
+	if (FParse::Value(FCommandLine::Get(), TEXT("LZFlythrough="), FlyDir))
+	{
+		int32 Cells = 24;
+		FParse::Value(FCommandLine::Get(), TEXT("LZFlyCells="), Cells);
+		FParse::Value(FCommandLine::Get(), TEXT("LZFlySpeed="), FlySpeed);
+		const TArray<FIntPoint> Path2 = FindPath(StartCell, ExitCell);
+		for (int32 i = 0; i < Path2.Num() && i < Cells; ++i) { FlyPoints.Add(GetCellCenterWorld(Path2[i], 165.f)); }
+		FApp::SetUseFixedTimeStep(true);
+		FApp::SetFixedDeltaTime(1.0 / 30.0);
+		SetActorTickInterval(0.f);
+		PendingShotPath = FlyDir / TEXT("frame_00000.png");
+		bShotTopDown = false;
+		ShotPhase = 0;
+		ShotElapsed = ShotQuietTime = 0.f;
+		GetWorldTimerManager().SetTimer(ShotTimer, this, &ALevelZeroMazeGenerator::TickShotMode, 0.5f, true, 1.0f);
+		UE_LOG(LogLevelZeroMaze, Log, TEXT("Flythrough mode: %d path cells -> %s"), FlyPoints.Num(), *FlyDir);
+		return;
+	}
 	if (!FParse::Value(FCommandLine::Get(), TEXT("LZShot="), Path)) return;
 	PendingShotPath = Path;
 	bShotTopDown = FParse::Param(FCommandLine::Get(), TEXT("LZTopDown"));
@@ -777,7 +800,15 @@ void ALevelZeroMazeGenerator::TickShotMode()
 			Loc = GetCellCenterWorld(StartCell, 165.f);
 			Rot = FRotator(-3.f, GetFacingYaw(StartCell), 0.f);
 		}
+		if (FlyPoints.Num() > 1)
+		{
+			Loc = FlyPoints[0];
+			const FVector Dir = (FlyPoints[1] - FlyPoints[0]).GetSafeNormal();
+			Rot = FRotator(-2.f, Dir.Rotation().Yaw, 0.f);
+			FlyRot = Rot;
+		}
 		ACameraActor* Cam = GetWorld()->SpawnActor<ACameraActor>(Loc, Rot);
+		CaptureCamera = Cam;
 		if (Cam && PC)
 		{
 			Cam->GetCameraComponent()->SetFieldOfView(Fov);
@@ -796,6 +827,15 @@ void ALevelZeroMazeGenerator::TickShotMode()
 		Remaining += FAssetCompilingManager::Get().GetNumRemainingAssets();
 #endif
 		ShotQuietTime = (Remaining == 0) ? ShotQuietTime + 0.5f : 0.f;
+		if (((ShotQuietTime >= 3.f && ShotElapsed >= 6.f) || ShotElapsed > 900.f) && FlyPoints.Num() > 1)
+		{
+			UE_LOG(LogLevelZeroMaze, Log, TEXT("Flythrough capture starting"));
+			GetWorldTimerManager().ClearTimer(ShotTimer);
+			bFlying = true;
+			FlyDistance = 0.f;
+			FlyFrame = 0;
+			return;
+		}
 		if ((ShotQuietTime >= 3.f && ShotElapsed >= 6.f) || ShotElapsed > 900.f)
 		{
 			UE_LOG(LogLevelZeroMaze, Log, TEXT("Requesting screenshot %s (visible instances %d/%d)"), *PendingShotPath, GetNumVisibleInstances(), Instances.Num());
@@ -811,4 +851,44 @@ void ALevelZeroMazeGenerator::TickShotMode()
 		GetWorldTimerManager().ClearTimer(ShotTimer);
 		FPlatformMisc::RequestExit(false, TEXT("LevelZeroShot"));
 	}
+}
+
+FVector ALevelZeroMazeGenerator::SampleFly(float Distance) const
+{
+	// Piecewise-linear path through cell centres with corners rounded by blending two segments.
+	float Remaining = FMath::Max(Distance, 0.f);
+	for (int32 i = 0; i + 1 < FlyPoints.Num(); ++i)
+	{
+		const float SegLen = FVector::Dist(FlyPoints[i], FlyPoints[i + 1]);
+		if (Remaining <= SegLen)
+		{
+			return FMath::Lerp(FlyPoints[i], FlyPoints[i + 1], SegLen > 0.f ? Remaining / SegLen : 0.f);
+		}
+		Remaining -= SegLen;
+	}
+	return FlyPoints.Last();
+}
+
+void ALevelZeroMazeGenerator::TickFlythrough(float DeltaSeconds)
+{
+	float Total = 0.f;
+	for (int32 i = 0; i + 1 < FlyPoints.Num(); ++i) { Total += FVector::Dist(FlyPoints[i], FlyPoints[i + 1]); }
+	if (!CaptureCamera || FlyDistance >= Total)
+	{
+		UE_LOG(LogLevelZeroMaze, Log, TEXT("Flythrough done: %d frames"), FlyFrame);
+		bFlying = false;
+		FPlatformMisc::RequestExit(false, TEXT("LevelZeroFlythrough"));
+		return;
+	}
+	const float Dt = 1.f / 30.f; // fixed step, independent of real frame time
+	FlyDistance += FlySpeed * Dt;
+	// Smooth the corner by averaging samples around the current distance; look ahead ~1.5 cells.
+	const FVector Pos = (SampleFly(FlyDistance - 120.f) + SampleFly(FlyDistance) * 2.f + SampleFly(FlyDistance + 120.f)) * 0.25f;
+	const FVector Ahead = SampleFly(FlyDistance + CellSize * 1.5f);
+	const float BobZ = FMath::Sin(FlyDistance / 75.f * PI) * 1.5f; // subtle head bob (walking)
+	FRotator Target = (Ahead - Pos).Rotation();
+	Target.Pitch = -2.f;
+	FlyRot = FMath::RInterpTo(FlyRot, Target, Dt, 2.5f);
+	CaptureCamera->SetActorLocationAndRotation(Pos + FVector(0, 0, BobZ), FlyRot);
+	FScreenshotRequest::RequestScreenshot(FlyDir / FString::Printf(TEXT("frame_%05d.png"), FlyFrame++), false, false);
 }

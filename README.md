@@ -59,9 +59,9 @@ Not in V1: story, multiple levels, collectibles, monster variants, save system.
 
 ## TODO
 - [ ] Get PICO's written OK for Unreal (and horror content / age rating) before Oct 21
-- [ ] Open the project once in the editor, let shaders compile, save `L_Level0` as the startup map
-- [ ] `ALZMazeGenerator` (C++): seeded grid maze -> HISM walls/pillars/ceiling-light tiles, start/exit placement
-- [ ] `ULZTileStreamer`: only enable tiles within ~3 cells of the player
+- [x] `Level0` map (`/Game/LevelZero/Maps/Level0`) is the editor + game startup map
+- [x] `ALevelZeroMazeGenerator` (C++): seeded 30x30 maze, merged rooms, pillar halls, doorways, ceiling panels, BFS start/exit, `FindPath` for AI
+- [x] Tile streaming: modules beyond 3 cells (Chebyshev) of the camera are collapsed; collision stays on an invisible ISM
 - [ ] 6 greybox modules (wall 2 m / 4 m, pillar, doorway, ceiling tile w/ light, floor) - our own art, emissive panels with baked AO in texture
 - [ ] Atmosphere: hum loop, flicker component, exponential height fog, footstep surface sounds (CC0 / recorded; log in Docs/ASSET_LICENSES.md)
 - [ ] `ALZMonster` + `ALZMonsterAIController`: AIPerception (Hearing + Sight), Behavior Tree, grid A* or runtime NavMesh (`Navigation Mesh` set to Dynamic)
@@ -72,3 +72,9 @@ Not in V1: story, multiple levels, collectibles, monster variants, save system.
 - [ ] Tripo concept -> monster mesh (< 15k tris), retopo, rig, idle/walk/run/lunge
 - [ ] First APK on a real PICO headset; profile to a locked 72 fps
 - [ ] Capture V1 delivery clip
+
+## Step 1: maze generator (done 2026-10-17)
+- `Source/LevelZero/LevelZeroMazeGenerator.*`: recursive-backtracker maze + rooms + pillar halls + 10% loops + doorways; double-BFS start/exit (seed 20261021: 75 steps apart); 7 render ISMs (6 draw calls + exit) streamed per cell, invisible collision ISM, exit trigger + `OnExitReached`.
+- `Tools/create_level0.py` rebuilds materials + `Level0`; `Tools/verify_level0.py` is the headless check (`LZ_VERIFY_OK`).
+- Captures (offscreen, no window): `UnrealEditor.exe LevelZero.uproject /Game/LevelZero/Maps/Level0 -game -RenderOffscreen -ResX=1280 -ResY=720 -nohmd -LZFlythrough=C:/tmp/fly [-LZFlyCells=16 -LZFlySpeed=200]` writes PNG frames along the start->exit path (encode with ffmpeg). `-LZShot=<png> [-LZTopDown]` writes a still.
+- Android: see `Docs/EMULATORS.md` (PICO emulator yes / Android XR emulator no) and `Tools/package_android.ps1 -Variant Store|Emulator`.
