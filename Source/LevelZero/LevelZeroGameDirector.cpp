@@ -62,7 +62,8 @@ void ALevelZeroGameDirector::BeginPlay()
 	bNoMonster = FParse::Param(FCommandLine::Get(), TEXT("LZNoMonster"));
 	if (!Maze)
 	{
-		for (TActorIterator<ALevelZeroMazeGenerator> It(GetWorld()); It; ++It) { Maze = *It; break; }
+		TActorIterator<ALevelZeroMazeGenerator> It(GetWorld()); // first maze in the world
+		if (It) { Maze = *It; }
 	}
 	// The generator builds the maze + nav in its own BeginPlay; start one tick later so ordering never matters.
 	GetWorldTimerManager().SetTimer(StartHandle, this, &ALevelZeroGameDirector::TryStartRound, 0.1f, true, 0.05f);

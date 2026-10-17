@@ -27,7 +27,8 @@ ALevelZeroMonster* ALevelZeroMonsterAI::GetMonster() const
 void ALevelZeroMonsterAI::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
-	for (TActorIterator<ALevelZeroMazeGenerator> It(GetWorld()); It; ++It) { Maze = *It; break; }
+	TActorIterator<ALevelZeroMazeGenerator> It(GetWorld()); // first maze in the world
+	if (It) { Maze = *It; }
 	SetState(ELZMonsterState::Wander, TEXT("spawned"));
 }
 

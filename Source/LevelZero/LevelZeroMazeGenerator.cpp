@@ -647,7 +647,8 @@ void ALevelZeroMazeGenerator::EnsureNavMeshBounds()
 	UWorld* World = GetWorld();
 	if (!World) return;
 	ANavMeshBoundsVolume* Volume = nullptr;
-	for (TActorIterator<ANavMeshBoundsVolume> It(World); It; ++It) { Volume = *It; break; }
+	TActorIterator<ANavMeshBoundsVolume> It(World); // reuse the first bounds volume
+	if (It) { Volume = *It; }
 	const FVector Center = GetActorTransform().TransformPosition(FVector(Width * CellSize * 0.5f, Height * CellSize * 0.5f, WallHeight * 0.5f));
 	if (!Volume)
 	{

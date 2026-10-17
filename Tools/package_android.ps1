@@ -43,5 +43,6 @@ try {
   if ($backupProject) { Set-Content $project $backupProject -NoNewline }
   if ($backupIni) { Set-Content $engineIni $backupIni -NoNewline }
 }
-Get-ChildItem $out -Recurse -Filter *.apk -ErrorAction SilentlyContinue | ForEach-Object { "APK: $($_.FullName) ($([math]::Round($_.Length/1MB,1)) MB)" }
+if ($code -ne 0) { Write-Host "BUILD FAILED (exit $code); any APK under $out is from an earlier build." }
+Get-ChildItem $out -Recurse -Filter *.apk -ErrorAction SilentlyContinue | ForEach-Object { "APK: $($_.FullName) ($([math]::Round($_.Length/1MB,1)) MB, $($_.LastWriteTime))" }
 exit $code
