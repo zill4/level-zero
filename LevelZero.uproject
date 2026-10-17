@@ -12,7 +12,9 @@
 		{ "Name": "PICOController", "Enabled": true, "SupportedTargetPlatforms": [ "Win64", "Android" ] },
 		{ "Name": "PICOOpenXR", "Enabled": true, "SupportedTargetPlatforms": [ "Win64", "Android" ] },
 		{ "Name": "OpenXREyeTracker", "Enabled": false },
-		{ "Name": "ModelingToolsEditorMode", "Enabled": true, "TargetAllowList": [ "Editor" ] }
+		{ "Name": "ModelingToolsEditorMode", "Enabled": true, "TargetAllowList": [ "Editor" ] },
+		{ "Name": "PythonScriptPlugin", "Enabled": true, "TargetAllowList": [ "Editor" ] },
+		{ "Name": "EditorScriptingUtilities", "Enabled": true, "TargetAllowList": [ "Editor" ] }
 	],
 	"TargetPlatforms": [ "Android", "Windows" ]
 }
