@@ -1,0 +1,134 @@
+{
+  "level_id": "L4",
+  "display_name": "L4 - Checkerboard Mall",
+  "map": "/Game/LevelZero/Maps/L4_Mall",
+  "next": "L5",
+  "seed": 20261025,
+  "width": 30,
+  "height": 30,
+  "cell_size": 400.0,
+  "corridor_width_cells": 2,
+  "ceiling_height": 450.0,
+  "num_rooms": 12,
+  "num_pillar_halls": 1,
+  "stream_radius_cells": 5,
+  "wall_color": [
+    0.8469,
+    0.8469,
+    0.8469
+  ],
+  "floor_color": [
+    0.8879,
+    0.8879,
+    0.8879
+  ],
+  "ceiling_color": [
+    0.9047,
+    0.9047,
+    0.9047
+  ],
+  "trim_color": [
+    0.5776,
+    0.0296,
+    0.0252
+  ],
+  "light_color": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "alt_floor_color": [
+    0.0056,
+    0.0056,
+    0.0056
+  ],
+  "fog_color": [
+    0.7011,
+    0.7231,
+    0.7605
+  ],
+  "fog_start": 1000,
+  "fog_end": 3200.0,
+  "light_spacing_cells": 1,
+  "all_light_cells_lit": false,
+  "lit_panel_chance": 0.6,
+  "dead_panel_chance": 0.05,
+  "spec": {
+    "name": "Checkerboard Mall",
+    "refs": [
+      "https://x.com/liminal__dreams/status/2051934958663479538"
+    ],
+    "fog_spec_m": [
+      10,
+      50
+    ],
+    "monster_twist": "PA chime plays near the monster's position (sometimes a decoy); shutters roll down behind you when it is chasing",
+    "transition": "the mall's cinema entrance; checker floor gives way to wavy carpet",
+    "new_props_needed": [
+      "cafe table + chairs",
+      "patio umbrella",
+      "planter",
+      "mall bench",
+      "escalator module",
+      "roll-down shutter",
+      "kiosk cart",
+      "fountain basin",
+      "spiral stair/tube",
+      "blank sign panel"
+    ]
+  },
+  "room_size_min": [
+    2,
+    2
+  ],
+  "room_size_max": [
+    3,
+    3
+  ],
+  "pillar_hall_size_min": [
+    6,
+    6
+  ],
+  "pillar_hall_size_max": [
+    6,
+    6
+  ],
+  "pillar_size": 70,
+  "hall_ceiling_height": 900,
+  "balcony_height": 450,
+  "door_width": 300,
+  "door_height": 300,
+  "room_doorway_chance": 0.8,
+  "corridor_doorway_chance": 0.0,
+  "loop_chance": 0.25,
+  "alt_floor_pattern": "checker",
+  "light_tint": [
+    1.0,
+    0.99,
+    0.96
+  ],
+  "ambient": 0.45,
+  "bounce": 0.55,
+  "floor_light": 0.75,
+  "ceil_light": 0.85,
+  "ceiling_light_mesh": "LZ_CeilingLight",
+  "wall_vent_mesh": "LZ_WallVent",
+  "wall_vent_chance": 0.03,
+  "clutter_wall_meshes": [
+    "LZ_Boxes"
+  ],
+  "clutter_free_meshes": [
+    "LZ_WetFloorSign"
+  ],
+  "num_clutter_clusters": 12,
+  "landmark_meshes": [
+    "LZ_VendingMachine",
+    "LZ_ArcadeCabinet"
+  ],
+  "landmarks_per_mesh": [
+    2,
+    3
+  ],
+  "landmark_spacing": 5,
+  "notes": "2-cell concourses, 4.5 m ceiling, black/white checker floor, storefront rooms with 3 m openings, a 6x6 atrium (9 m) with a greybox upper balcony ring at 4.5 m (not walkable; no escalators/stairs yet)."
+}

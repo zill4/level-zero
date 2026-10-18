@@ -1,0 +1,118 @@
+{
+  "level_id": "L6",
+  "display_name": "L6 - Indoor Suburb (bonus, from likes)",
+  "map": "/Game/LevelZero/Maps/L6_Suburb",
+  "next": "",
+  "seed": 20261027,
+  "width": 20,
+  "height": 20,
+  "cell_size": 800.0,
+  "corridor_width_cells": 1,
+  "ceiling_height": 1500.0,
+  "num_rooms": 10,
+  "num_pillar_halls": 0,
+  "stream_radius_cells": 4,
+  "wall_color": [
+    0.807,
+    0.7454,
+    0.6308
+  ],
+  "floor_color": [
+    0.0423,
+    0.0452,
+    0.0513
+  ],
+  "ceiling_color": [
+    0.7157,
+    0.7605,
+    0.8228
+  ],
+  "trim_color": [
+    0.2623,
+    0.0284,
+    0.0284
+  ],
+  "light_color": [
+    0.8714,
+    0.9216,
+    1.0
+  ],
+  "alt_floor_color": [
+    0.1119,
+    0.2542,
+    0.0423
+  ],
+  "fog_color": [
+    0.5841,
+    0.6514,
+    0.7157
+  ],
+  "fog_start": 600,
+  "fog_end": 3000,
+  "light_spacing_cells": 1,
+  "all_light_cells_lit": false,
+  "lit_panel_chance": 0.9,
+  "dead_panel_chance": 0.02,
+  "spec": {
+    "name": "Indoor Suburb (bonus, from likes)",
+    "refs": [
+      "https://x.com/liminal__dreams/status/2054889422131273943",
+      "https://x.com/liminal__dreams/status/2111438252532199787"
+    ],
+    "fog_spec_m": [
+      15,
+      70
+    ],
+    "monster_twist": "porch lights switch off house by house toward its position; it can cut through enterable houses",
+    "transition": "a door in the megastructure wall: an exit door at the top of stairs open to a pink sky (ending)",
+    "new_props_needed": [
+      "house facade block (3 variants)",
+      "generic sedan (no badge)",
+      "street lamp",
+      "mailbox",
+      "hedge",
+      "picket fence",
+      "BBQ grill",
+      "folding chairs",
+      "megastructure wall card"
+    ]
+  },
+  "partition_height": 650,
+  "wall_thickness": 300,
+  "room_size_min": [
+    2,
+    2
+  ],
+  "room_size_max": [
+    3,
+    3
+  ],
+  "loop_chance": 0.3,
+  "stub_wall_chance": 0.0,
+  "room_doorway_chance": 0.0,
+  "corridor_doorway_chance": 0.0,
+  "alt_floor_pattern": "rooms",
+  "light_fixture_scale": 2.5,
+  "light_tint": [
+    0.97,
+    0.99,
+    1.0
+  ],
+  "ambient": 0.42,
+  "bounce": 0.5,
+  "floor_light": 0.7,
+  "ceil_light": 0.8,
+  "ceiling_light_mesh": "LZ_CeilingLight",
+  "wall_vent_mesh": "",
+  "clutter_wall_meshes": [
+    "LZ_Boxes",
+    "LZ_WaterCooler"
+  ],
+  "clutter_free_meshes": [
+    "LZ_OfficeChair"
+  ],
+  "num_clutter_clusters": 10,
+  "landmark_meshes": [],
+  "min_openness": 0.45,
+  "notes": "8 m cells on a 20x20 grid under a 15 m drop ceiling; 6.5 m tall, 3 m thick \"house row\" blocks form 5 m streets; cul-de-sacs (rooms) have lawn floors. Aggressive fog (6-30 m, spec 15-70 m) and a 4-cell stream radius for the long sightlines."
+}

@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "LevelZeroTheme.h"
 #include "LevelZeroMazeGenerator.generated.h"
 
 class UInstancedStaticMeshComponent;
@@ -11,6 +12,9 @@ class UBoxComponent;
 class UStaticMesh;
 class UMaterialInterface;
 class APlayerStart;
+class ULevelZeroTheme;
+class UMaterialInstanceDynamic;
+class UWorld;
 
 UENUM(BlueprintType)
 enum class ELZCellType : uint8
@@ -29,6 +33,23 @@ class LEVELZERO_API ALevelZeroMazeGenerator : public AActor
 
 public:
 	ALevelZeroMazeGenerator();
+
+	// ---------------- Theme ----------------
+	/** Data-driven level theme. When set, Generate() first copies the theme onto the properties below (ApplyTheme),
+	 *  and its palette/fog are applied as dynamic material instances. Unset = use the properties as edited. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Theme")
+	TObjectPtr<ULevelZeroTheme> Theme;
+
+	/** Map opened when the exit is reached (from the theme; empty = restart this level). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Theme")
+	TSoftObjectPtr<UWorld> NextLevel;
+
+	UFUNCTION(BlueprintPure, Category = "Maze|Theme")
+	FName GetLevelId() const;
+
+	/** Copy of Base with the theme's fog (and, for Tripo props, brightness) applied; Base itself if there is no theme. Cached. */
+	UFUNCTION(BlueprintCallable, Category = "Maze|Theme")
+	UMaterialInterface* GetThemedMaterial(UMaterialInterface* Base, bool bProp = true);
 
 	// ---------------- Layout ----------------
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze")
@@ -80,6 +101,40 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze")
 	bool bWideCorridors = true;
 
+	/** Wide mode: corridor width in cells (2 = Level 0; 3+ = concourses). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze", meta = (ClampMin = 2, ClampMax = 4))
+	int32 CorridorWidthCells = 2;
+
+	/** Maze wall height (shelving racks / showroom partitions) below the ceiling at WallHeight. 0 = full height. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze")
+	float PartitionHeight = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze")
+	ELZLayoutStyle LayoutStyle = ELZLayoutStyle::Maze;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze", meta = (ClampMin = 2))
+	int32 CrossAisleEvery = 6;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze", meta = (ClampMin = 1))
+	int32 CrossAisleWidth = 2;
+
+	/** 0 = WallHeight. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze")
+	float RoomCeilingHeight = 0.f;
+
+	/** 0 = WallHeight. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze")
+	float HallCeilingHeight = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze")
+	float BalconyHeight = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze")
+	bool bSeatTiersInRooms = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Visuals")
+	ELZFloorPattern AltFloorPattern = ELZFloorPattern::None;
+
 	/** Wide mode: chance to leave one internal wall stub inside a 2x2 block (breaks up the grid, keeps connectivity). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze", meta = (ClampMin = 0, ClampMax = 1))
 	float StubWallChance = 0.3f;
@@ -104,6 +159,16 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Lights", meta = (ClampMin = 0, ClampMax = 1))
 	float DeadPanelChance = 0.08f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Lights")
+	bool bAllLightCellsLit = true;
+
+	/** One ceiling fixture every N cells (1 = every cell). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Lights", meta = (ClampMin = 1, ClampMax = 8))
+	int32 LightSpacingCells = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Lights")
+	float LightFixtureScale = 1.f;
 
 	// ---------------- Streaming ----------------
 	/** Hide modules farther than StreamRadiusCells (Chebyshev) from the player camera at runtime. */
@@ -188,9 +253,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
 	int32 NumClutterClusters = 16;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	FIntPoint ClusterWallItems = FIntPoint(1, 3);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	FIntPoint ClusterFreeItems = FIntPoint(0, 2);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	bool bClustersInCorridors = false;
+
 	/** Rare set pieces (vending machine, arcade cabinet): 1-2 of each, against walls in rooms/halls far from the start. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
 	TArray<TObjectPtr<UStaticMesh>> LandmarkMeshes;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	FIntPoint LandmarksPerMesh = FIntPoint(1, 2);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	int32 LandmarkMinStartDistance = 10;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	int32 LandmarkSpacing = 6;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	bool bLandmarksInCorridors = false;
 
 	UFUNCTION(BlueprintPure, Category = "Maze|Props")
 	FString GetPropSummary() const { return PropSummary; }
@@ -286,6 +372,9 @@ protected:
 	TObjectPtr<UInstancedStaticMeshComponent> FloorISM;
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UInstancedStaticMeshComponent> AltFloorISM;
+
+	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> CeilingISM;
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
@@ -351,6 +440,15 @@ private:
 	FString PropSummary;
 	int32 NumPropInstances = 0;
 	UInstancedStaticMeshComponent* MakePropISM(UStaticMesh* Mesh, bool bCollision);
+	UPROPERTY(Transient) TMap<TObjectPtr<UMaterialInterface>, TObjectPtr<UMaterialInstanceDynamic>> ThemedPropMIDs;
+	void ApplyTheme();
+	UMaterialInterface* ThemedSurface(UMaterialInterface* Base, const FLinearColor* Color, float Emissive);
+	float GetWallTop() const { return PartitionHeight > 0.f ? FMath::Min(PartitionHeight, WallHeight) : WallHeight; }
+	float GetCellCeiling(int32 CellIdx) const;
+	float GetMaxCeiling() const { return FMath::Max3(WallHeight, RoomCeilingHeight, HallCeilingHeight); }
+	bool IsAltFloor(int32 X, int32 Y) const;
+	void CarveAisles();
+	bool IsLightCell(int32 X, int32 Y) const { const int32 S = FMath::Max(1, LightSpacingCells); return (X % S) == S / 2 && (Y % S) == S / 2; }
 	void BuildProps();
 	FIntPoint LastStreamCell = FIntPoint(-9999, -9999);
 	int32 NumLitPanels = 0;
@@ -392,6 +490,7 @@ private:
 	TArray<int32> BFS(FIntPoint From) const;
 	void BuildLayout(FRandomStream& Rng);
 	void CarveWideMaze(FRandomStream& Rng);
+	void CarveWideMazeK(FRandomStream& Rng, int32 K);
 	void BuildMeshes(FRandomStream& Rng);
 	void ClearMeshes();
 	void AddBox(UInstancedStaticMeshComponent* ISM, const FVector& Center, const FVector& SizeCm, std::initializer_list<int32> OwnerCells, bool bCollision);

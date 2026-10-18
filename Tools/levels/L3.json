@@ -1,0 +1,123 @@
+{
+  "level_id": "L3",
+  "display_name": "L3 - Pool Rooms (tiled water level)",
+  "map": "/Game/LevelZero/Maps/L3_PoolRooms",
+  "next": "L4",
+  "seed": 20261024,
+  "width": 30,
+  "height": 30,
+  "cell_size": 400.0,
+  "corridor_width_cells": 1,
+  "ceiling_height": 400.0,
+  "num_rooms": 8,
+  "num_pillar_halls": 2,
+  "stream_radius_cells": 5,
+  "wall_color": [
+    0.7231,
+    0.807,
+    0.8714
+  ],
+  "floor_color": [
+    0.5841,
+    0.6939,
+    0.7913
+  ],
+  "ceiling_color": [
+    0.807,
+    0.8714,
+    0.9216
+  ],
+  "trim_color": [
+    0.0273,
+    0.159,
+    0.6867
+  ],
+  "light_color": [
+    0.3325,
+    0.5776,
+    1.0
+  ],
+  "alt_floor_color": [
+    0.0273,
+    0.159,
+    0.6867
+  ],
+  "fog_color": [
+    0.3916,
+    0.5776,
+    0.807
+  ],
+  "fog_start": 1000,
+  "fog_end": 3200.0,
+  "light_spacing_cells": 2,
+  "all_light_cells_lit": false,
+  "lit_panel_chance": 0.8,
+  "dead_panel_chance": 0.03,
+  "spec": {
+    "name": "Pool Rooms (tiled water level)",
+    "refs": [
+      "https://x.com/liminal__dreams/status/2046911266086600940"
+    ],
+    "fog_spec_m": [
+      8,
+      40
+    ],
+    "monster_twist": "wading in water is always loud (sprint-level noise); monster moves submerged in deep pools, telegraphed only by ripples and bubbles",
+    "transition": "a pool ladder climbs into a mall fountain; water sound swaps to muzak",
+    "new_props_needed": [
+      "pool ladder",
+      "lifeguard chair",
+      "pool ring float",
+      "drain grate",
+      "deck lounger",
+      "tiled bench",
+      "emissive sky-window panel"
+    ]
+  },
+  "room_size_min": [
+    3,
+    3
+  ],
+  "room_size_max": [
+    5,
+    5
+  ],
+  "pillar_hall_size_min": [
+    4,
+    4
+  ],
+  "pillar_hall_size_max": [
+    6,
+    6
+  ],
+  "pillar_size": 50,
+  "loop_chance": 0.25,
+  "room_doorway_chance": 0.4,
+  "corridor_doorway_chance": 0.02,
+  "alt_floor_pattern": "rooms",
+  "light_emissive": 3.0,
+  "light_tint": [
+    0.9,
+    0.96,
+    1.0
+  ],
+  "ambient": 0.4,
+  "bounce": 0.42,
+  "floor_light": 0.6,
+  "ceil_light": 0.72,
+  "ceiling_light_mesh": "LZ_CeilingLight",
+  "wall_vent_mesh": "LZ_WallVent",
+  "wall_vent_chance": 0.04,
+  "clutter_wall_meshes": [],
+  "clutter_free_meshes": [
+    "LZ_WetFloorSign"
+  ],
+  "num_clutter_clusters": 10,
+  "cluster_free_items": [
+    1,
+    2
+  ],
+  "landmark_meshes": [],
+  "min_openness": 0.45,
+  "notes": "Tiled 1-cell corridors, 4 m ceiling, cool light. Rooms are pools: opaque water-blue floor (alt floor) at deck level (no depth, no wading noise yet). Two tile-pillar forests. Sky-window corridor not built."
+}

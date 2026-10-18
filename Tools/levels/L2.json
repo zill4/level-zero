@@ -1,0 +1,138 @@
+{
+  "level_id": "L2",
+  "display_name": "L2 - Showroom of Homes (furniture department)",
+  "map": "/Game/LevelZero/Maps/L2_Showroom",
+  "next": "L3",
+  "seed": 20261023,
+  "width": 30,
+  "height": 30,
+  "cell_size": 400.0,
+  "corridor_width_cells": 1,
+  "ceiling_height": 1200.0,
+  "num_rooms": 14,
+  "num_pillar_halls": 0,
+  "stream_radius_cells": 5,
+  "wall_color": [
+    0.7913,
+    0.7157,
+    0.5647
+  ],
+  "floor_color": [
+    0.2705,
+    0.0437,
+    0.0612
+  ],
+  "ceiling_color": [
+    0.0033,
+    0.0033,
+    0.0052
+  ],
+  "trim_color": [
+    0.1946,
+    0.1022,
+    0.0423
+  ],
+  "light_color": [
+    1.0,
+    0.6939,
+    0.3515
+  ],
+  "alt_floor_color": [
+    0.1946,
+    0.1022,
+    0.0423
+  ],
+  "fog_color": [
+    0.0103,
+    0.007,
+    0.0144
+  ],
+  "fog_start": 600,
+  "fog_end": 3000,
+  "light_spacing_cells": 3,
+  "all_light_cells_lit": false,
+  "lit_panel_chance": 0.4,
+  "dead_panel_chance": 0.0,
+  "spec": {
+    "name": "Showroom of Homes (furniture department)",
+    "refs": [
+      "https://x.com/liminal__dreams/status/2084522586080260486"
+    ],
+    "fog_spec_m": [
+      6,
+      30
+    ],
+    "monster_twist": "freezes inside any lit vignette (lamp light), moves only through dark gaps; CRT static hiss rises when it is close",
+    "transition": "a bathroom vignette's back door leads down tiled steps; air turns humid and the carpet becomes tile",
+    "new_props_needed": [
+      "sofa",
+      "armchair",
+      "bookshelf",
+      "floor lamp (emissive shade)",
+      "potted plant",
+      "wooden railing segment",
+      "staircase module",
+      "kitchenette counter",
+      "bed",
+      "side table",
+      "blank price-tag placard",
+      "half-height wallpaper partition"
+    ]
+  },
+  "partition_height": 300,
+  "door_width": 360,
+  "door_height": 280,
+  "room_size_min": [
+    3,
+    3
+  ],
+  "room_size_max": [
+    4,
+    4
+  ],
+  "loop_chance": 0.3,
+  "stub_wall_chance": 0.0,
+  "room_doorway_chance": 0.9,
+  "corridor_doorway_chance": 0.0,
+  "alt_floor_pattern": "rooms",
+  "light_fixture_scale": 2.0,
+  "light_tint": [
+    1.0,
+    0.88,
+    0.72
+  ],
+  "ambient": 0.3,
+  "bounce": 0.5,
+  "floor_light": 0.55,
+  "ceil_light": 0.25,
+  "prop_brightness": 0.85,
+  "ceiling_light_mesh": "LZ_CeilingLight",
+  "wall_vent_mesh": "",
+  "clutter_wall_meshes": [
+    "LZ_FilingCabinet",
+    "LZ_Boxes"
+  ],
+  "clutter_free_meshes": [
+    "LZ_OfficeChair"
+  ],
+  "num_clutter_clusters": 22,
+  "cluster_wall_items": [
+    1,
+    2
+  ],
+  "cluster_free_items": [
+    1,
+    2
+  ],
+  "landmark_meshes": [
+    "LZ_CRTCart"
+  ],
+  "landmarks_per_mesh": [
+    3,
+    4
+  ],
+  "landmark_spacing": 4,
+  "landmark_min_start_distance": 6,
+  "min_openness": 0.45,
+  "notes": "Dark void hall: 3 m vignette partitions under a 12 m black ceiling, open-front rooms (3.6 m openings) with wood-tone floors (accent colour), dusty-rose carpet paths, sparse warm panels high up. Mezzanine/stairs not built (needs walkable verticality)."
+}

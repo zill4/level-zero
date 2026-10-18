@@ -120,6 +120,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Director")
 	void RestartRound();
+	/** Escaped: open the maze's NextLevel if it has one, else restart this level. */
+	void AdvanceOrRestart();
 
 protected:
 	virtual void BeginPlay() override;

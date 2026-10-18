@@ -1,0 +1,124 @@
+{
+  "level_id": "L5",
+  "display_name": "L5 - Screens 7-13 (cinema)",
+  "map": "/Game/LevelZero/Maps/L5_Cinema",
+  "next": "L6",
+  "seed": 20261026,
+  "width": 30,
+  "height": 30,
+  "cell_size": 400.0,
+  "corridor_width_cells": 2,
+  "ceiling_height": 350.0,
+  "num_rooms": 7,
+  "num_pillar_halls": 0,
+  "stream_radius_cells": 5,
+  "wall_color": [
+    0.147,
+    0.0423,
+    0.2623
+  ],
+  "floor_color": [
+    0.0685,
+    0.0232,
+    0.1441
+  ],
+  "ceiling_color": [
+    0.0423,
+    0.0176,
+    0.0648
+  ],
+  "trim_color": [
+    0.807,
+    0.5457,
+    0.1022
+  ],
+  "light_color": [
+    0.6867,
+    0.8879,
+    0.1022
+  ],
+  "alt_floor_color": [
+    0.0482,
+    0.1946,
+    0.0685
+  ],
+  "fog_color": [
+    0.0232,
+    0.0091,
+    0.0395
+  ],
+  "fog_start": 600,
+  "fog_end": 3000,
+  "light_spacing_cells": 2,
+  "all_light_cells_lit": false,
+  "lit_panel_chance": 0.5,
+  "dead_panel_chance": 0.1,
+  "spec": {
+    "name": "Screens 7-13 (cinema)",
+    "refs": [
+      "https://x.com/liminal__dreams/status/2053280837395779872"
+    ],
+    "fog_spec_m": [
+      6,
+      30
+    ],
+    "monster_twist": "auditoriums play loud film audio that masks your footsteps (noise radius halved) but also hides the monster's; screen flicker lights it up",
+    "transition": "an auditorium fire exit opens onto a street under a giant drop ceiling",
+    "new_props_needed": [
+      "theater seat row module",
+      "concession counter",
+      "popcorn machine",
+      "rope stanchion",
+      "poster frame",
+      "trash can",
+      "ticket podium",
+      "door sign light box"
+    ]
+  },
+  "room_size_min": [
+    5,
+    7
+  ],
+  "room_size_max": [
+    5,
+    7
+  ],
+  "room_ceiling_height": 900,
+  "seat_tiers_in_rooms": true,
+  "room_doorway_chance": 0.35,
+  "corridor_doorway_chance": 0.02,
+  "loop_chance": 0.2,
+  "alt_floor_pattern": "stripes",
+  "light_emissive": 2.5,
+  "light_tint": [
+    1.0,
+    0.9,
+    0.9
+  ],
+  "ambient": 0.3,
+  "bounce": 0.55,
+  "floor_light": 0.55,
+  "ceil_light": 0.45,
+  "ceiling_light_mesh": "LZ_CeilingLight",
+  "wall_vent_mesh": "",
+  "clutter_wall_meshes": [],
+  "clutter_free_meshes": [
+    "LZ_WetFloorSign"
+  ],
+  "num_clutter_clusters": 6,
+  "cluster_free_items": [
+    1,
+    1
+  ],
+  "landmark_meshes": [
+    "LZ_ArcadeCabinet",
+    "LZ_VendingMachine"
+  ],
+  "landmarks_per_mesh": [
+    1,
+    2
+  ],
+  "landmarks_in_corridors": true,
+  "landmark_min_start_distance": 6,
+  "notes": "Purple 2-cell hallways (3.5 m), striped carpet, 7 auditoriums (5x7 cells, 9 m ceilings) with visual stepped seat tiers (no collision, flat floor), sign-yellow sconces. No screens/curving spine yet."
+}

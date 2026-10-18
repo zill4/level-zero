@@ -1,0 +1,465 @@
+{
+  "project": "Level Zero",
+  "version": 1,
+  "generated": "2026-10-17",
+  "units": "meters; colors are sRGB hex (convert with FLinearColor::FromSRGBColor for M_LZ_Surface params)",
+  "baseline_generator": {
+    "source": "step3 ALevelZeroMazeGenerator",
+    "CellSize_cm": 400,
+    "WallHeight_cm": 300,
+    "Width": 30,
+    "Height": 30,
+    "StreamRadiusCells": 5
+  },
+  "existing_tripo_props": [
+    "LZ_CeilingLight",
+    "LZ_WallVent",
+    "LZ_OfficeChair",
+    "LZ_Boxes",
+    "LZ_WetFloorSign",
+    "LZ_FilingCabinet",
+    "LZ_WaterCooler",
+    "LZ_CRTCart",
+    "LZ_VendingMachine",
+    "LZ_ArcadeCabinet",
+    "LZ_Monster(rigged)"
+  ],
+  "levels": [
+    {
+      "id": "L0",
+      "name": "Floor Zero (office)",
+      "order": 0,
+      "status": "exists (step3)",
+      "refs": [
+        "https://x.com/liminal__dreams/status/2039542863977935169"
+      ],
+      "cell_size_m": 4.0,
+      "corridor_width_cells": 2,
+      "room_count": 10,
+      "pillar_halls": 4,
+      "ceiling_height_m": 3.0,
+      "floors": 1,
+      "colors": {
+        "wall": "#E7DAA6",
+        "floor": "#B5A87C",
+        "ceiling": "#EAE6D4",
+        "light_panel": "#FFF9E5",
+        "accent": "#C9B26A"
+      },
+      "fog": {
+        "color": "#958B65",
+        "density": 0.55,
+        "start_m": 5,
+        "end_m": 34
+      },
+      "light_panel_spacing_m": 4.0,
+      "lit_panel_chance": 0.55,
+      "dead_panel_chance": 0.08,
+      "landmarks": [
+        "vending machine nook",
+        "arcade cabinet nook",
+        "pillar hall",
+        "dead-end with wet-floor sign",
+        "original-looking exit door"
+      ],
+      "reuse_tripo_props": [
+        "LZ_CeilingLight",
+        "LZ_WallVent",
+        "LZ_OfficeChair",
+        "LZ_Boxes",
+        "LZ_WetFloorSign",
+        "LZ_FilingCabinet",
+        "LZ_WaterCooler",
+        "LZ_CRTCart",
+        "LZ_VendingMachine",
+        "LZ_ArcadeCabinet",
+        "LZ_Monster(rigged)"
+      ],
+      "new_props_needed": [],
+      "monster_twist": "baseline: wander/investigate(noise)/chase(sight)/search 4 s",
+      "exit_to": "L1",
+      "transition": "stockroom door: office wall gives way to a back-of-house stockroom (boxes, roll cage) that opens into the warehouse"
+    },
+    {
+      "id": "L1",
+      "name": "Bulk Aisles (warehouse grocery)",
+      "order": 1,
+      "refs": [
+        "https://x.com/liminal__dreams/status/2045139196847783944"
+      ],
+      "cell_size_m": 4.0,
+      "corridor_width_cells": 1,
+      "room_count": 6,
+      "pillar_halls": 0,
+      "ceiling_height_m": 9.0,
+      "floors": 1,
+      "layout": "parallel aisle grid: rack walls 5 m tall along cell edges, aisles 1 cell wide, cross-aisles every 6 cells (2 cells wide); rooms = pallet clearings, checkout lane block, freezer wall, receiving dock",
+      "colors": {
+        "wall": "#2F6F73",
+        "floor": "#8A8A84",
+        "ceiling": "#26282C",
+        "light_panel": "#F2F4EE",
+        "accent": "#C8742A"
+      },
+      "fog": {
+        "color": "#4E5552",
+        "density": 0.35,
+        "start_m": 12,
+        "end_m": 60
+      },
+      "light_panel_spacing_m": 8.0,
+      "lit_panel_chance": 0.7,
+      "dead_panel_chance": 0.1,
+      "landmarks": [
+        "giant hanging original mascot heads (bird-like, our own design)",
+        "checkout lane row with dead registers",
+        "walk-in freezer aisle (cold blue light)",
+        "pallet-stack maze",
+        "exposed duct runs over trusses",
+        "numbered aisle signs (generic numbers only)"
+      ],
+      "reuse_tripo_props": [
+        "LZ_Boxes",
+        "LZ_WetFloorSign",
+        "LZ_VendingMachine",
+        "LZ_WallVent",
+        "LZ_Monster(rigged)"
+      ],
+      "new_props_needed": [
+        "pallet rack module (2 lengths)",
+        "shrink-wrapped pallet stack",
+        "shopping cart (generic, no logo)",
+        "flatbed cart",
+        "freezer case",
+        "checkout counter + belt",
+        "hanging aisle sign",
+        "mascot head (original)",
+        "sample table",
+        "high-bay light fixture",
+        "ceiling duct section"
+      ],
+      "monster_twist": "stalks along rack tops (heard overhead, drops into aisles); bumping a cart is a loud noise event",
+      "exit_to": "L2",
+      "transition": "a 'HOME' department arch at the back of the warehouse; aisles of boxed furniture thin out into the dark showroom"
+    },
+    {
+      "id": "L2",
+      "name": "Showroom of Homes (furniture department)",
+      "order": 2,
+      "refs": [
+        "https://x.com/liminal__dreams/status/2084522586080260486"
+      ],
+      "cell_size_m": 4.0,
+      "corridor_width_cells": 1,
+      "room_count": 14,
+      "pillar_halls": 0,
+      "ceiling_height_m": 12.0,
+      "floors": 2,
+      "layout": "dark void hall; winding 1-cell carpet path between open-front room vignettes (3x3 to 4x4 cells, ~45% of area); mezzanine walkway loop at +3 m with railings and 2-3 stair modules",
+      "colors": {
+        "wall": "#E6DCC6",
+        "floor": "#8E3B46",
+        "ceiling": "#0B0B10",
+        "light_panel": "#FFD9A0",
+        "accent": "#7A5A3A"
+      },
+      "fog": {
+        "color": "#1A1420",
+        "density": 0.6,
+        "start_m": 6,
+        "end_m": 30
+      },
+      "light_panel_spacing_m": 12.0,
+      "lit_panel_chance": 0.4,
+      "dead_panel_chance": 0.0,
+      "landmarks": [
+        "living-room vignette with glowing CRT",
+        "bedroom vignette",
+        "kitchenette vignette",
+        "mezzanine overlook of a sea of tiny lit rooms",
+        "staircase to mezzanine"
+      ],
+      "reuse_tripo_props": [
+        "LZ_CRTCart",
+        "LZ_OfficeChair",
+        "LZ_Boxes",
+        "LZ_FilingCabinet",
+        "LZ_Monster(rigged)"
+      ],
+      "new_props_needed": [
+        "sofa",
+        "armchair",
+        "bookshelf",
+        "floor lamp (emissive shade)",
+        "potted plant",
+        "wooden railing segment",
+        "staircase module",
+        "kitchenette counter",
+        "bed",
+        "side table",
+        "blank price-tag placard",
+        "half-height wallpaper partition"
+      ],
+      "monster_twist": "freezes inside any lit vignette (lamp light), moves only through dark gaps; CRT static hiss rises when it is close",
+      "exit_to": "L3",
+      "transition": "a bathroom vignette's back door leads down tiled steps; air turns humid and the carpet becomes tile"
+    },
+    {
+      "id": "L3",
+      "name": "Pool Rooms (tiled water level)",
+      "order": 3,
+      "refs": [
+        "https://x.com/liminal__dreams/status/2046911266086600940"
+      ],
+      "cell_size_m": 4.0,
+      "corridor_width_cells": 1,
+      "room_count": 8,
+      "pillar_halls": 2,
+      "ceiling_height_m": 4.0,
+      "floors": 1,
+      "layout": "tiled corridors with ankle-deep water channels; rooms are deep pools (blocked, edge walkways) and tile-pillar forests; one long sky-window corridor; steps down into shallow basins",
+      "colors": {
+        "wall": "#DDE8F0",
+        "floor": "#C9D9E6",
+        "ceiling": "#E8F0F6",
+        "light_panel": "#9CC8FF",
+        "accent": "#2E6FD8"
+      },
+      "fog": {
+        "color": "#A8C8E8",
+        "density": 0.4,
+        "start_m": 8,
+        "end_m": 40
+      },
+      "light_panel_spacing_m": 8.0,
+      "lit_panel_chance": 0.8,
+      "dead_panel_chance": 0.03,
+      "landmarks": [
+        "sky-window corridor (emissive cloud panels, fake sky)",
+        "deep pool hall",
+        "tile pillar forest",
+        "lifeguard chair overlook",
+        "drain-grate dead ends"
+      ],
+      "reuse_tripo_props": [
+        "LZ_WetFloorSign",
+        "LZ_WallVent",
+        "LZ_Monster(rigged)"
+      ],
+      "new_props_needed": [
+        "pool ladder",
+        "lifeguard chair",
+        "pool ring float",
+        "drain grate",
+        "deck lounger",
+        "tiled bench",
+        "emissive sky-window panel"
+      ],
+      "monster_twist": "wading in water is always loud (sprint-level noise); monster moves submerged in deep pools, telegraphed only by ripples and bubbles",
+      "exit_to": "L4",
+      "transition": "a pool ladder climbs into a mall fountain; water sound swaps to muzak"
+    },
+    {
+      "id": "L4",
+      "name": "Checkerboard Mall",
+      "order": 4,
+      "refs": [
+        "https://x.com/liminal__dreams/status/2051934958663479538"
+      ],
+      "cell_size_m": 4.0,
+      "corridor_width_cells": 2,
+      "room_count": 12,
+      "pillar_halls": 1,
+      "ceiling_height_m": 4.5,
+      "floors": 2,
+      "layout": "central 2-storey atrium (6x6 cells) with ring corridors 2 cells wide on both floors; storefronts as 2x3-cell rooms with roll-down grates; floors linked by static escalator ramps and a spiral stair",
+      "colors": {
+        "wall": "#EDEDED",
+        "floor": "#F2F2F2",
+        "floor_alt": "#111111",
+        "ceiling": "#F4F4F4",
+        "light_panel": "#FFFFFF",
+        "accent": "#C8302C"
+      },
+      "fog": {
+        "color": "#DADDE2",
+        "density": 0.3,
+        "start_m": 10,
+        "end_m": 50
+      },
+      "light_panel_spacing_m": 4.0,
+      "lit_panel_chance": 0.6,
+      "dead_panel_chance": 0.05,
+      "landmarks": [
+        "checkerboard food court with red umbrellas",
+        "spiral tube slide/stair",
+        "dry fountain",
+        "blank storefront signage (no brands)",
+        "escalator pair"
+      ],
+      "reuse_tripo_props": [
+        "LZ_VendingMachine",
+        "LZ_ArcadeCabinet",
+        "LZ_Boxes",
+        "LZ_WetFloorSign",
+        "LZ_Monster(rigged)"
+      ],
+      "new_props_needed": [
+        "cafe table + chairs",
+        "patio umbrella",
+        "planter",
+        "mall bench",
+        "escalator module",
+        "roll-down shutter",
+        "kiosk cart",
+        "fountain basin",
+        "spiral stair/tube",
+        "blank sign panel"
+      ],
+      "monster_twist": "PA chime plays near the monster's position (sometimes a decoy); shutters roll down behind you when it is chasing",
+      "exit_to": "L5",
+      "transition": "the mall's cinema entrance; checker floor gives way to wavy carpet"
+    },
+    {
+      "id": "L5",
+      "name": "Screens 7-13 (cinema)",
+      "order": 5,
+      "refs": [
+        "https://x.com/liminal__dreams/status/2053280837395779872"
+      ],
+      "cell_size_m": 4.0,
+      "corridor_width_cells": 2,
+      "room_count": 7,
+      "pillar_halls": 0,
+      "ceiling_height_m": 3.5,
+      "auditorium_ceiling_height_m": 9.0,
+      "floors": 1,
+      "layout": "curving 2-cell hallway spine with auditorium doors every 2 cells; auditoriums are 5x7-cell rooms with stepped (raked) floors; concession lobby hub",
+      "colors": {
+        "wall": "#6B3A8C",
+        "floor": "#4A2A6A",
+        "floor_alt": "#3E7A4A",
+        "ceiling": "#3A2448",
+        "light_panel": "#D8F25A",
+        "accent": "#E8C35A"
+      },
+      "fog": {
+        "color": "#2A1838",
+        "density": 0.5,
+        "start_m": 6,
+        "end_m": 30
+      },
+      "light_panel_spacing_m": 6.0,
+      "lit_panel_chance": 0.5,
+      "dead_panel_chance": 0.1,
+      "landmarks": [
+        "glowing numbered door signs (original numbering only)",
+        "raked auditorium with flickering blank screen",
+        "concession counter",
+        "ticket podium + rope stanchions",
+        "original poster frames (our own art)"
+      ],
+      "reuse_tripo_props": [
+        "LZ_ArcadeCabinet",
+        "LZ_VendingMachine",
+        "LZ_WetFloorSign",
+        "LZ_Monster(rigged)"
+      ],
+      "new_props_needed": [
+        "theater seat row module",
+        "concession counter",
+        "popcorn machine",
+        "rope stanchion",
+        "poster frame",
+        "trash can",
+        "ticket podium",
+        "door sign light box"
+      ],
+      "monster_twist": "auditoriums play loud film audio that masks your footsteps (noise radius halved) but also hides the monster's; screen flicker lights it up",
+      "exit_to": "L6",
+      "transition": "an auditorium fire exit opens onto a street under a giant drop ceiling"
+    },
+    {
+      "id": "L6",
+      "name": "Indoor Suburb (bonus, from likes)",
+      "order": 6,
+      "refs": [
+        "https://x.com/liminal__dreams/status/2054889422131273943",
+        "https://x.com/liminal__dreams/status/2111438252532199787"
+      ],
+      "cell_size_m": 8.0,
+      "corridor_width_cells": 1,
+      "room_count": 10,
+      "pillar_halls": 0,
+      "ceiling_height_m": 15.0,
+      "floors": 1,
+      "layout": "curving street maze on 8 m cells under a vast office drop ceiling; houses are solid instanced blocks (2-3 enterable); cul-de-sacs as rooms; megastructure walls as the outer boundary",
+      "colors": {
+        "wall": "#E8E0D0",
+        "floor": "#3A3C40",
+        "floor_alt": "#5E8A3A",
+        "ceiling": "#DCE2EA",
+        "light_panel": "#F0F6FF",
+        "accent": "#8C2F2F"
+      },
+      "fog": {
+        "color": "#C9D3DC",
+        "density": 0.45,
+        "start_m": 15,
+        "end_m": 70
+      },
+      "light_panel_spacing_m": 6.0,
+      "lit_panel_chance": 0.9,
+      "dead_panel_chance": 0.02,
+      "landmarks": [
+        "endless street under ceiling panels",
+        "cul-de-sac with abandoned BBQ",
+        "enterable house",
+        "megastructure apartment wall with skybridges (background)"
+      ],
+      "reuse_tripo_props": [
+        "LZ_Boxes",
+        "LZ_OfficeChair",
+        "LZ_WaterCooler",
+        "LZ_Monster(rigged)"
+      ],
+      "new_props_needed": [
+        "house facade block (3 variants)",
+        "generic sedan (no badge)",
+        "street lamp",
+        "mailbox",
+        "hedge",
+        "picket fence",
+        "BBQ grill",
+        "folding chairs",
+        "megastructure wall card"
+      ],
+      "monster_twist": "porch lights switch off house by house toward its position; it can cut through enterable houses",
+      "exit_to": "END",
+      "transition": "a door in the megastructure wall: an exit door at the top of stairs open to a pink sky (ending)"
+    }
+  ],
+  "extras": {
+    "hub_interstitial": {
+      "name": "Heart Diner (safe room between levels)",
+      "refs": [
+        "https://x.com/liminal__dreams/status/2019501318835236899"
+      ],
+      "notes": "pink vinyl booths, heart balloons, no monster; save/rest and EN/ZH level card"
+    },
+    "ending": {
+      "name": "Exit stairs to the sky",
+      "refs": [
+        "https://x.com/liminal__dreams/status/2041261713022988648",
+        "https://x.com/liminal__dreams/status/2041472518402269513"
+      ],
+      "notes": "stair to a lone exit door in a pink sky; light pillars on the horizon"
+    },
+    "not_used": [
+      {
+        "ref": "https://x.com/liminal__dreams/status/2041179648969617451",
+        "reason": "outdoor turbine highway with a giant spindly creature: strong mood but outdoors and the creature style is close to a known artist's work; use only as tone reference for the ending vista, not the monster"
+      }
+    ]
+  }
+}

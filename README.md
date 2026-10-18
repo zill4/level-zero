@@ -121,3 +121,46 @@ Not in V1: story, multiple levels, collectibles, monster variants, save system.
   - Clutter is sparse (16 clusters / 23 items) by design. Raise `NumClutterClusters` for more.
   - Not tested on a PICO device or the emulator yet (the emulator was busy with Oomi).
 - **Captures:** `-LZPropShots=<dir> -LZNoMonster` writes `prop_00..11.png` (landmarks and the first clusters).
+
+## Step 4: data-driven level themes + 7 greybox levels (2026-10-17)
+- **Theme asset:** `ULevelZeroTheme` (`Source/LevelZero/LevelZeroTheme.h`, a `UPrimaryDataAsset`) holds everything a level varies:
+  - **Dimensions and layout:** grid size, cell size, corridor width in cells, ceiling height (plus separate room and hall ceilings), partition height, wall thickness.
+  - **Room and hall shapes:** rooms, pillar halls, loops, doorways, and the layout style (`Maze` or `Aisles` with cross-aisles).
+  - **Look:** palette, alt-floor pattern (rooms / halls / checker / stripes), light tint and fog.
+  - **Lights:** spacing, lit/dead chance and fixture scale.
+  - **Props and landmarks:** prop sets, cluster counts, landmark rules (count per mesh, min distance from start, spacing, corridors allowed).
+  - **Flow and extras:** next-level map, stream radius, balcony ring, seat tiers.
+- **Generator:** `ALevelZeroMazeGenerator::Theme`. `Generate()` first copies the theme onto the generator (`ApplyTheme`), so there is still one code path. Palette and fog are applied as dynamic instances of the shared `MI_LZ_*` / Tripo materials, including the monster's (`GetThemedMaterial`). A map without a theme behaves as before.
+- **Exit chain:** reaching the exit shows "ESCAPED", then `ALevelZeroGameDirector::AdvanceOrRestart` opens the theme's `NextLevel` (or restarts if it has none).
+- **Source of truth:** `Tools/levels/<id>.json`.
+  - `level0.json` is hand-written and reproduces the step 3 Level 0 exactly (same seed, layout, panel and prop counts).
+  - `L1..L6.json` are generated from the designer spec `Docs/levels_spec.json` by `python Tools/levels_from_spec.py`. The spec's colours are sRGB hex, converted to linear. Greybox layout knobs live in that script.
+- **Build and verify:**
+  ```
+  UnrealEditor-Cmd.exe LevelZero.uproject -run=pythonscript "-script=<abs>/Tools/create_level.py --all"        (or --theme L3)
+  UnrealEditor-Cmd.exe LevelZero.uproject -run=pythonscript "-script=<abs>/Tools/verify_level.py --theme L3"
+  ```
+  - `create_level.py` writes `DA_LZTheme_<id>` to `/Game/LevelZero/Themes`, rebuilds each map in place and links the chain.
+  - `create_level0.py` / `verify_level0.py` are wrappers for Level 0.
+  - `M_LZ_Surface` gained a `LightTint` vector parameter. Its default is the old hard-coded warm tint, so Level 0 is unchanged.
+
+| Level | Map | Greybox |
+|---|---|---|
+| level0 Floor Zero | `Maps/Level0` | unchanged (step 3) |
+| L1 Bulk Aisles | `Maps/L1_BulkAisles` | `Aisles` layout: 5 m teal rack walls (90 cm deep), 1-cell aisles, 2-cell cross-aisles every 6 cells, 9 m dark ceiling, scaled high-bay cards every 8 m, box clusters along racks, vending machines, 6-cell stream radius |
+| L2 Showroom of Homes | `Maps/L2_Showroom` | 3 m vignette partitions in a 12 m black void, 14 open-front rooms (3.6 m openings) with wood-tone floors, rose carpet paths, sparse warm panels, CRT-cart landmarks, filing cabinets / boxes / chairs as stand-in furniture |
+| L3 Pool Rooms | `Maps/L3_PoolRooms` | tiled 1-cell corridors, 4 m ceiling, cool light; rooms are "pools" (opaque water-blue floor, deck level); 2 tile-pillar forests; wet-floor signs |
+| L4 Checkerboard Mall | `Maps/L4_Mall` | 2-cell concourses, checker floor, 12 storefront rooms (3 m openings), 6x6 atrium with a 9 m ceiling and a greybox balcony ring at 4.5 m; vending + arcade landmarks |
+| L5 Screens 7-13 | `Maps/L5_Cinema` | purple 2-cell halls (3.5 m), striped carpet, 7 auditoriums (5x7 cells, 9 m ceilings) with visual stepped seat tiers, arcade/vending in the halls |
+| L6 Indoor Suburb | `Maps/L6_Suburb` | 8 m cells (20x20), 15 m ceiling, 6.5 m x 3 m "house row" blocks forming 5 m streets, lawn cul-de-sacs, fog 6-30 m and a 4-cell stream radius |
+
+- **Not built yet (needs new Tripo props or walkable verticality):**
+  - Mezzanine and stairs (L2), escalators and a walkable second floor (L4), raked walkable floors (L5).
+  - Water depth and wading (L3), the sky-window corridor (L3).
+  - Per-level props from the spec's `new_props_needed`, the Heart Diner hub and the ending.
+- **Monster twists:** none implemented yet. Every level uses the baseline AI; the twists are listed in `Docs/levels_spec.json`.
+- **Fog vs streaming:** spec fog end distances past `(StreamRadiusCells + 3)` cells are clamped:
+  - L1: 60 → 36 m.
+  - L3: 40 → 32 m.
+  - L4: 50 → 32 m.
+  - L6: 15–70 → 6–30 m (on purpose, for its long sightlines).

@@ -1,5 +1,6 @@
 // Level Zero - seeded procedural "Level 0" maze built from instanced greybox modules.
 #include "LevelZeroMazeGenerator.h"
+#include "LevelZeroTheme.h"
 
 #include "Components/BoxComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -61,6 +62,7 @@ ALevelZeroMazeGenerator::ALevelZeroMazeGenerator()
 	RootComponent = Root;
 
 	FloorISM = MakeISM(this, Root, TEXT("FloorISM"));
+	AltFloorISM = MakeISM(this, Root, TEXT("AltFloorISM"));
 	CeilingISM = MakeISM(this, Root, TEXT("CeilingISM"));
 	WallISM = MakeISM(this, Root, TEXT("WallISM"));
 	DoorFrameISM = MakeISM(this, Root, TEXT("DoorFrameISM"));
@@ -179,6 +181,7 @@ void ALevelZeroMazeGenerator::Tick(float DeltaSeconds)
 void ALevelZeroMazeGenerator::Generate()
 {
 	const double T0 = FPlatformTime::Seconds();
+	ApplyTheme();
 	Width = FMath::Clamp(Width, 4, 64);
 	Height = FMath::Clamp(Height, 4, 64);
 
@@ -194,6 +197,111 @@ void ALevelZeroMazeGenerator::Generate()
 	LastStreamCell = FIntPoint(-9999, -9999);
 	LastGenerateMs = (FPlatformTime::Seconds() - T0) * 1000.0;
 	UE_LOG(LogLevelZeroMaze, Log, TEXT("%s"), *GetStatsString());
+}
+
+// ------------------------------------------------------------------ Theme
+
+void ALevelZeroMazeGenerator::ApplyTheme()
+{
+	if (!Theme) return;
+	const ULevelZeroTheme& T = *Theme;
+	if (!bRandomSeedOnBeginPlay) { Seed = T.Seed; }
+	NextLevel = T.NextLevel;
+	Width = T.Width; Height = T.Height; CellSize = T.CellSize;
+	WallHeight = T.CeilingHeight; PartitionHeight = T.PartitionHeight; WallThickness = T.WallThickness;
+	bWideCorridors = T.CorridorWidthCells >= 2; CorridorWidthCells = FMath::Clamp(T.CorridorWidthCells, 2, 4);
+	NumRooms = T.NumRooms; RoomSizeMin = T.RoomSizeMin; RoomSizeMax = T.RoomSizeMax;
+	NumPillarHalls = T.NumPillarHalls; PillarHallSizeMin = T.PillarHallSizeMin; PillarHallSizeMax = T.PillarHallSizeMax; PillarSize = T.PillarSize;
+	LoopChance = T.LoopChance; StubWallChance = T.StubWallChance;
+	RoomDoorwayChance = T.RoomDoorwayChance; CorridorDoorwayChance = T.CorridorDoorwayChance; DoorWidth = T.DoorWidth; DoorHeight = T.DoorHeight;
+	LitPanelChance = T.LitPanelChance; DeadPanelChance = T.DeadPanelChance; LightSpacingCells = T.LightSpacingCells; LightFixtureScale = T.LightFixtureScale;
+	StreamRadiusCells = T.StreamRadiusCells;
+	LayoutStyle = T.LayoutStyle; CrossAisleEvery = T.CrossAisleEvery; CrossAisleWidth = T.CrossAisleWidth;
+	RoomCeilingHeight = T.RoomCeilingHeight; HallCeilingHeight = T.HallCeilingHeight; BalconyHeight = T.BalconyHeight;
+	bSeatTiersInRooms = T.bSeatTiersInRooms; AltFloorPattern = T.AltFloorPattern; bAllLightCellsLit = T.bAllLightCellsLit;
+	bPlaceProps = T.bPlaceProps; CeilingLightMesh = T.CeilingLightMesh; WallVentMesh = T.WallVentMesh; WallVentChance = T.WallVentChance; WallVentZ = T.WallVentZ;
+	ClutterWallMeshes = T.ClutterWallMeshes; ClutterFreeMeshes = T.ClutterFreeMeshes; NumClutterClusters = T.NumClutterClusters;
+	ClusterWallItems = T.ClusterWallItems; ClusterFreeItems = T.ClusterFreeItems; bClustersInCorridors = T.bClustersInCorridors;
+	LandmarkMeshes = T.LandmarkMeshes; LandmarksPerMesh = T.LandmarksPerMesh; LandmarkMinStartDistance = T.LandmarkMinStartDistance;
+	LandmarkSpacing = T.LandmarkSpacing; bLandmarksInCorridors = T.bLandmarksInCorridors;
+	ThemedPropMIDs.Reset();
+}
+
+FName ALevelZeroMazeGenerator::GetLevelId() const
+{
+	return Theme ? Theme->LevelId : FName(TEXT("level0"));
+}
+
+UMaterialInterface* ALevelZeroMazeGenerator::ThemedSurface(UMaterialInterface* Base, const FLinearColor* Color, float Emissive)
+{
+	if (!Theme || !Theme->bApplyPalette || !Base) return Base;
+	UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Base, this);
+	if (Color) { MID->SetVectorParameterValue(TEXT("Color"), *Color); }
+	if (Emissive >= 0.f) { MID->SetScalarParameterValue(TEXT("EmissiveStrength"), Emissive); }
+	MID->SetVectorParameterValue(TEXT("LightTint"), Theme->LightTint);
+	MID->SetScalarParameterValue(TEXT("Ambient"), Theme->Ambient);
+	MID->SetScalarParameterValue(TEXT("Bounce"), Theme->Bounce);
+	MID->SetScalarParameterValue(TEXT("FloorLight"), Theme->FloorLight);
+	MID->SetScalarParameterValue(TEXT("CeilLight"), Theme->CeilLight);
+	MID->SetScalarParameterValue(TEXT("FogStart"), Theme->FogStart);
+	MID->SetScalarParameterValue(TEXT("FogEnd"), Theme->FogEnd);
+	MID->SetVectorParameterValue(TEXT("FogColor"), Theme->FogColor);
+	return MID;
+}
+
+UMaterialInterface* ALevelZeroMazeGenerator::GetThemedMaterial(UMaterialInterface* Base, bool bProp)
+{
+	if (!Theme || !Theme->bApplyPalette || !Base) return Base;
+	if (TObjectPtr<UMaterialInstanceDynamic>* Found = ThemedPropMIDs.Find(Base)) { return Found->Get(); }
+	UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Base, this);
+	MID->SetScalarParameterValue(TEXT("FogStart"), Theme->FogStart);
+	MID->SetScalarParameterValue(TEXT("FogEnd"), Theme->FogEnd);
+	MID->SetVectorParameterValue(TEXT("FogColor"), Theme->FogColor);
+	if (bProp && !FMath::IsNearlyEqual(Theme->PropBrightness, 1.f))
+	{
+		for (const TCHAR* Name : { TEXT("Ambient"), TEXT("Bounce") })
+		{
+			float V = 0.f;
+			if (Base->GetScalarParameterValue(FHashedMaterialParameterInfo(Name), V)) { MID->SetScalarParameterValue(Name, V * Theme->PropBrightness); }
+		}
+	}
+	ThemedPropMIDs.Add(Base, MID);
+	return MID;
+}
+
+float ALevelZeroMazeGenerator::GetCellCeiling(int32 CellIdx) const
+{
+	if (!CellTypes.IsValidIndex(CellIdx)) return WallHeight;
+	const uint8 T = CellTypes[CellIdx];
+	if (T == static_cast<uint8>(ELZCellType::Room) && RoomCeilingHeight > 0.f) return RoomCeilingHeight;
+	if (T == static_cast<uint8>(ELZCellType::PillarHall) && HallCeilingHeight > 0.f) return HallCeilingHeight;
+	return WallHeight;
+}
+
+bool ALevelZeroMazeGenerator::IsAltFloor(int32 X, int32 Y) const
+{
+	const uint8 T = CellTypes[Idx(X, Y)];
+	switch (AltFloorPattern)
+	{
+	case ELZFloorPattern::Rooms: return T == static_cast<uint8>(ELZCellType::Room);
+	case ELZFloorPattern::Halls: return T == static_cast<uint8>(ELZCellType::PillarHall);
+	case ELZFloorPattern::Checker: return ((X + Y) & 1) == 1;
+	case ELZFloorPattern::Stripes: return (Y % 3) == 1;
+	default: return false;
+	}
+}
+
+void ALevelZeroMazeGenerator::CarveAisles()
+{
+	// Every row is an E-W aisle; rack walls separate rows except in the N-S cross-aisle columns.
+	const int32 Every = FMath::Max(2, CrossAisleEvery), CW = FMath::Clamp(CrossAisleWidth, 1, Every - 1);
+	for (int32 Y = 0; Y < Height; ++Y)
+		for (int32 X = 0; X < Width; ++X)
+		{
+			if (X + 1 < Width) { EastOpen[Idx(X, Y)] = true; }
+			if (Y + 1 < Height && (X % Every) < CW) { SouthOpen[Idx(X, Y)] = true; }
+		}
+	// Close the cross-aisle columns' interior E-W boundary? No: a 2-wide cross aisle stays one open lane.
 }
 
 void ALevelZeroMazeGenerator::SetOpen(FIntPoint A, FIntPoint B, bool bOpen)
@@ -238,7 +346,11 @@ void ALevelZeroMazeGenerator::BuildLayout(FRandomStream& Rng)
 	PillarCorners.Reset();
 
 	// 1. Perfect maze: iterative recursive backtracker (on a half-res grid in wide mode).
-	if (bWideCorridors && Width >= 4 && Height >= 4)
+	if (LayoutStyle == ELZLayoutStyle::Aisles)
+	{
+		CarveAisles();
+	}
+	else if (bWideCorridors && Width >= 4 && Height >= 4)
 	{
 		CarveWideMaze(Rng);
 	}
@@ -347,6 +459,8 @@ void ALevelZeroMazeGenerator::BuildLayout(FRandomStream& Rng)
 
 void ALevelZeroMazeGenerator::CarveWideMaze(FRandomStream& Rng)
 {
+	const int32 K = FMath::Clamp(CorridorWidthCells, 2, 4);
+	if (K != 2 && Width >= 2 * K && Height >= 2 * K) { CarveWideMazeK(Rng, K); return; }
 	const int32 MW = Width / 2, MH = Height / 2;
 	TArray<bool> Visited;
 	Visited.Init(false, MW * MH);
@@ -390,6 +504,61 @@ void ALevelZeroMazeGenerator::CarveWideMaze(FRandomStream& Rng)
 	// Odd sizes: attach the leftover last column/row to its neighbour.
 	for (int32 Y = 0; Y < Height; ++Y) { if (Width % 2 == 1) SetOpen(FIntPoint(Width - 2, Y), FIntPoint(Width - 1, Y), true); }
 	for (int32 X = 0; X < Width; ++X) { if (Height % 2 == 1) SetOpen(FIntPoint(X, Height - 2), FIntPoint(X, Height - 1), true); }
+}
+
+void ALevelZeroMazeGenerator::CarveWideMazeK(FRandomStream& Rng, int32 K)
+{
+	// Same as the 2-wide carve on a 1/K grid: open all K boundaries along each carved macro edge, open block interiors
+	// (optionally keeping one interior wall stub: a KxK grid minus one edge stays connected).
+	const int32 MW = Width / K, MH = Height / K;
+	TArray<bool> Visited;
+	Visited.Init(false, MW * MH);
+	TArray<FIntPoint> Stack;
+	const FIntPoint First(Rng.RandRange(0, MW - 1), Rng.RandRange(0, MH - 1));
+	Stack.Push(First);
+	Visited[First.Y * MW + First.X] = true;
+	while (Stack.Num() > 0)
+	{
+		const FIntPoint Cur = Stack.Last();
+		FIntPoint Options[4];
+		int32 NumOptions = 0;
+		for (const FIntPoint& D : GDirs)
+		{
+			const FIntPoint Nb = Cur + D;
+			if (Nb.X >= 0 && Nb.Y >= 0 && Nb.X < MW && Nb.Y < MH && !Visited[Nb.Y * MW + Nb.X]) { Options[NumOptions++] = Nb; }
+		}
+		if (NumOptions == 0) { Stack.Pop(EAllowShrinking::No); continue; }
+		const FIntPoint Next = Options[Rng.RandRange(0, NumOptions - 1)];
+		const FIntPoint A(FMath::Min(Cur.X, Next.X), FMath::Min(Cur.Y, Next.Y));
+		for (int32 k = 0; k < K; ++k)
+		{
+			if (Next.X != Cur.X) { SetOpen(FIntPoint(K * A.X + K - 1, K * A.Y + k), FIntPoint(K * A.X + K, K * A.Y + k), true); }
+			else { SetOpen(FIntPoint(K * A.X + k, K * A.Y + K - 1), FIntPoint(K * A.X + k, K * A.Y + K), true); }
+		}
+		Visited[Next.Y * MW + Next.X] = true;
+		Stack.Push(Next);
+	}
+	const int32 NumInterior = 2 * K * (K - 1);
+	for (int32 BY = 0; BY < MH; ++BY)
+	{
+		for (int32 BX = 0; BX < MW; ++BX)
+		{
+			const int32 Stub = (Rng.FRand() < StubWallChance) ? Rng.RandRange(0, NumInterior - 1) : -1;
+			int32 e = 0;
+			for (int32 y = 0; y < K; ++y)
+				for (int32 x = 0; x < K; ++x)
+				{
+					const FIntPoint P(K * BX + x, K * BY + y);
+					if (x + 1 < K) { SetOpen(P, P + FIntPoint(1, 0), e++ != Stub); }
+					if (y + 1 < K) { SetOpen(P, P + FIntPoint(0, 1), e++ != Stub); }
+				}
+		}
+	}
+	// Leftover columns/rows: a strip corridor attached to its neighbour.
+	for (int32 X = MW * K; X < Width; ++X)
+		for (int32 Y = 0; Y < Height; ++Y) { SetOpen(FIntPoint(X - 1, Y), FIntPoint(X, Y), true); if (Y + 1 < Height) SetOpen(FIntPoint(X, Y), FIntPoint(X, Y + 1), true); }
+	for (int32 Y = MH * K; Y < Height; ++Y)
+		for (int32 X = 0; X < Width; ++X) { SetOpen(FIntPoint(X, Y - 1), FIntPoint(X, Y), true); if (X + 1 < Width) SetOpen(FIntPoint(X, Y), FIntPoint(X + 1, Y), true); }
 }
 
 TArray<int32> ALevelZeroMazeGenerator::BFS(FIntPoint From) const
@@ -504,7 +673,7 @@ UMaterialInterface* ALevelZeroMazeGenerator::ResolveMaterial(UMaterialInterface*
 
 void ALevelZeroMazeGenerator::ClearMeshes()
 {
-	for (UInstancedStaticMeshComponent* ISM : { FloorISM.Get(), CeilingISM.Get(), WallISM.Get(), DoorFrameISM.Get(), PillarISM.Get(), LightPanelISM.Get(), DeadPanelISM.Get(), CollisionISM.Get(), LintelCollisionISM.Get() })
+	for (UInstancedStaticMeshComponent* ISM : { FloorISM.Get(), AltFloorISM.Get(), CeilingISM.Get(), WallISM.Get(), DoorFrameISM.Get(), PillarISM.Get(), LightPanelISM.Get(), DeadPanelISM.Get(), CollisionISM.Get(), LintelCollisionISM.Get() })
 	{
 		ISM->ClearInstances();
 	}
@@ -542,14 +711,33 @@ void ALevelZeroMazeGenerator::BuildMeshes(FRandomStream& Rng)
 	if (!CubeMesh) return;
 
 	struct FSlot { UInstancedStaticMeshComponent* ISM; UMaterialInterface* Mat; FLinearColor Fallback; };
+	UMaterialInterface* WallM = WallMaterial, *FloorM = FloorMaterial, *CeilM = CeilingMaterial, *TrimM = DoorFrameMaterial, *PillarM = WallMaterial;
+	UMaterialInterface* AltFloorM = FloorMaterial;
+	UMaterialInterface* LightM = LightPanelMaterial, *DeadM = DeadPanelMaterial, *ExitM = ExitMaterial, *ShellM = FogShellMaterial;
+	if (Theme && Theme->bApplyPalette)
+	{
+		const ULevelZeroTheme& T = *Theme;
+		const FLinearColor PillarC = T.PillarColor.A > 0.f ? T.PillarColor : T.WallColor;
+		WallM = ThemedSurface(WallMaterial, &T.WallColor, -1.f);
+		FloorM = ThemedSurface(FloorMaterial, &T.FloorColor, -1.f);
+		AltFloorM = ThemedSurface(FloorMaterial, &T.AltFloorColor, -1.f);
+		CeilM = ThemedSurface(CeilingMaterial, &T.CeilingColor, -1.f);
+		TrimM = ThemedSurface(DoorFrameMaterial, &T.TrimColor, -1.f);
+		PillarM = ThemedSurface(WallMaterial, &PillarC, -1.f);
+		LightM = ThemedSurface(LightPanelMaterial, &T.LightColor, T.LightEmissive);
+		DeadM = ThemedSurface(DeadPanelMaterial, nullptr, -1.f);
+		ExitM = ThemedSurface(ExitMaterial, nullptr, -1.f);
+		ShellM = ThemedSurface(FogShellMaterial, &T.FogColor, -1.f);
+	}
 	const FSlot Slots[] = {
-		{ FloorISM, FloorMaterial, FLinearColor(0.42f, 0.36f, 0.18f) },
-		{ CeilingISM, CeilingMaterial, FLinearColor(0.78f, 0.75f, 0.62f) },
-		{ WallISM, WallMaterial, FLinearColor(0.78f, 0.68f, 0.36f) },
-		{ DoorFrameISM, DoorFrameMaterial, FLinearColor(0.62f, 0.53f, 0.28f) },
-		{ PillarISM, WallMaterial, FLinearColor(0.78f, 0.68f, 0.36f) },
-		{ LightPanelISM, LightPanelMaterial, FLinearColor(1.f, 0.97f, 0.8f) },
-		{ DeadPanelISM, DeadPanelMaterial, FLinearColor(0.25f, 0.24f, 0.2f) },
+		{ FloorISM, FloorM, FLinearColor(0.42f, 0.36f, 0.18f) },
+		{ AltFloorISM, AltFloorM, FLinearColor(0.2f, 0.2f, 0.2f) },
+		{ CeilingISM, CeilM, FLinearColor(0.78f, 0.75f, 0.62f) },
+		{ WallISM, WallM, FLinearColor(0.78f, 0.68f, 0.36f) },
+		{ DoorFrameISM, TrimM, FLinearColor(0.62f, 0.53f, 0.28f) },
+		{ PillarISM, PillarM, FLinearColor(0.78f, 0.68f, 0.36f) },
+		{ LightPanelISM, LightM, FLinearColor(1.f, 0.97f, 0.8f) },
+		{ DeadPanelISM, DeadM, FLinearColor(0.25f, 0.24f, 0.2f) },
 		{ CollisionISM, nullptr, FLinearColor::White },
 		{ LintelCollisionISM, nullptr, FLinearColor::White },
 	};
@@ -562,7 +750,7 @@ void ALevelZeroMazeGenerator::BuildMeshes(FRandomStream& Rng)
 		}
 	}
 
-	const float CS = CellSize, H = WallHeight, T = WallThickness;
+	const float CS = CellSize, T = WallThickness;
 
 	// Floor + ceiling tiles, ceiling light panels.
 	NumLitPanels = NumDeadPanels = 0;
@@ -572,26 +760,28 @@ void ALevelZeroMazeGenerator::BuildMeshes(FRandomStream& Rng)
 		{
 			const int32 C = Idx(X, Y);
 			const FVector Center((X + 0.5f) * CS, (Y + 0.5f) * CS, 0.f);
-			AddBox(FloorISM, Center + FVector(0, 0, -5.f), FVector(CS, CS, 10.f), { C }, false);
-			AddBox(CeilingISM, Center + FVector(0, 0, H + 5.f), FVector(CS, CS, 10.f), { C }, false);
+			const float CH = GetCellCeiling(C);
+			AddBox(IsAltFloor(X, Y) ? AltFloorISM.Get() : FloorISM.Get(), Center + FVector(0, 0, -5.f), FVector(CS, CS, 10.f), { C }, false);
+			AddBox(CeilingISM, Center + FVector(0, 0, CH + 5.f), FVector(CS, CS, 10.f), { C }, false);
 
 			const bool bHall = CellTypes[C] == static_cast<uint8>(ELZCellType::PillarHall);
 			const float Roll = Rng.FRand();
 			const FVector PanelSize = (Rng.FRand() < 0.5f) ? FVector(120.f, 60.f, 2.f) : FVector(60.f, 120.f, 2.f);
+			if (!IsLightCell(X, Y)) { continue; } // rolls above are always drawn, so spacing never changes the layout stream
 			if (CeilingLightMesh && bPlaceProps)
 			{
 				// Regular fixture grid: every cell gets a light; a few stay dead.
 				if (Roll < DeadPanelChance) { DeadLightCells.Add(FIntPoint(X, Y)); ++NumDeadPanels; }
-				else { LightCells.Add(FIntPoint(X, Y)); ++NumLitPanels; }
+				else if (bAllLightCellsLit || Roll < DeadPanelChance + LitPanelChance) { LightCells.Add(FIntPoint(X, Y)); ++NumLitPanels; }
 			}
 			else if (bHall || Roll < LitPanelChance)
 			{
-				AddBox(LightPanelISM, Center + FVector(0, 0, H - 1.f), PanelSize, { C }, false);
+				AddBox(LightPanelISM, Center + FVector(0, 0, CH - 1.f), PanelSize, { C }, false);
 				++NumLitPanels;
 			}
 			else if (Roll < LitPanelChance + DeadPanelChance)
 			{
-				AddBox(DeadPanelISM, Center + FVector(0, 0, H - 1.f), PanelSize, { C }, false);
+				AddBox(DeadPanelISM, Center + FVector(0, 0, CH - 1.f), PanelSize, { C }, false);
 				++NumDeadPanels;
 			}
 		}
@@ -605,20 +795,31 @@ void ALevelZeroMazeGenerator::BuildMeshes(FRandomStream& Rng)
 		// bAlongY: wall runs along Y at X = Fixed, spanning [SpanStart, SpanStart + CS]
 		auto MakeCenter = [&](float AlongCenter, float Z) { return bAlongY ? FVector(Fixed, AlongCenter, Z) : FVector(AlongCenter, Fixed, Z); };
 		auto MakeSize = [&](float AlongLen, float ZLen) { return bAlongY ? FVector(T, AlongLen, ZLen) : FVector(AlongLen, T, ZLen); };
+		// Ceilings can differ per cell type: walls rise to the taller side; open boundaries get a header over the step.
+		const float CA = GetCellCeiling(CellA), CB = CellB != INDEX_NONE ? GetCellCeiling(CellB) : CA;
+		const float Top = FMath::Max(CA, CB), Low = FMath::Min(CA, CB);
+		const float HW = PartitionHeight > 0.f ? FMath::Min(PartitionHeight, Top) : Top;
+		if (bOpen && PartitionHeight <= 0.f && Top - Low > 1.f)
+		{
+			AddBox(WallISM, MakeCenter(SpanStart + CS * 0.5f, (Low + Top) * 0.5f), MakeSize(CS + T, Top - Low), { CellA, CellB }, false);
+		}
 		if (!bOpen)
 		{
-			AddBox(WallISM, MakeCenter(SpanStart + CS * 0.5f, H * 0.5f), MakeSize(CS + T, H), { CellA, CellB }, true);
+			AddBox(WallISM, MakeCenter(SpanStart + CS * 0.5f, HW * 0.5f), MakeSize(CS + T, HW), { CellA, CellB }, true);
 			++NumWallSegments;
 		}
 		else if (bDoor)
 		{
 			const float PostLen = Post + T * 0.5f;
-			AddBox(DoorFrameISM, MakeCenter(SpanStart - T * 0.5f + PostLen * 0.5f, H * 0.5f), MakeSize(PostLen, H), { CellA, CellB }, true);
-			AddBox(DoorFrameISM, MakeCenter(SpanStart + CS + T * 0.5f - PostLen * 0.5f, H * 0.5f), MakeSize(PostLen, H), { CellA, CellB }, true);
-			const FVector LintelCenter = MakeCenter(SpanStart + CS * 0.5f, (DoorHeight + H) * 0.5f);
-			const FVector LintelSize = MakeSize(CS - 2.f * Post, H - DoorHeight);
-			AddBox(DoorFrameISM, LintelCenter, LintelSize, { CellA, CellB }, false);
-			LintelCollisionISM->AddInstance(FTransform(FQuat::Identity, LintelCenter, LintelSize / 100.f));
+			AddBox(DoorFrameISM, MakeCenter(SpanStart - T * 0.5f + PostLen * 0.5f, HW * 0.5f), MakeSize(PostLen, HW), { CellA, CellB }, true);
+			AddBox(DoorFrameISM, MakeCenter(SpanStart + CS + T * 0.5f - PostLen * 0.5f, HW * 0.5f), MakeSize(PostLen, HW), { CellA, CellB }, true);
+			if (HW > DoorHeight + 1.f) // low partitions have open-topped gaps instead of lintels
+			{
+				const FVector LintelCenter = MakeCenter(SpanStart + CS * 0.5f, (DoorHeight + HW) * 0.5f);
+				const FVector LintelSize = MakeSize(CS - 2.f * Post, HW - DoorHeight);
+				AddBox(DoorFrameISM, LintelCenter, LintelSize, { CellA, CellB }, false);
+				LintelCollisionISM->AddInstance(FTransform(FQuat::Identity, LintelCenter, LintelSize / 100.f));
+			}
 		}
 	};
 	for (int32 Y = 0; Y < Height; ++Y)
@@ -638,8 +839,57 @@ void ALevelZeroMazeGenerator::BuildMeshes(FRandomStream& Rng)
 	// Pillars on interior corners of pillar halls.
 	for (const FIntPoint& P : PillarCorners)
 	{
-		AddBox(PillarISM, FVector(P.X * CS, P.Y * CS, H * 0.5f), FVector(PillarSize, PillarSize, H),
+		const float PH = GetCellCeiling(Idx(P.X, P.Y));
+		AddBox(PillarISM, FVector(P.X * CS, P.Y * CS, PH * 0.5f), FVector(PillarSize, PillarSize, PH),
 			{ Idx(P.X - 1, P.Y - 1), Idx(P.X, P.Y - 1), Idx(P.X - 1, P.Y), Idx(P.X, P.Y) }, true);
+	}
+
+	// Balcony ring on pillar-hall edge cells (greybox upper floor, not walkable), railing on the void side.
+	if (BalconyHeight > 0.f)
+	{
+		auto IsHall = [&](const FIntPoint& P) { return IsValidCell(P) && CellTypes[Idx(P)] == static_cast<uint8>(ELZCellType::PillarHall); };
+		for (int32 Y = 0; Y < Height; ++Y)
+			for (int32 X = 0; X < Width; ++X)
+			{
+				const FIntPoint P(X, Y);
+				if (!IsHall(P)) continue;
+				bool bEdge = false;
+				for (const FIntPoint& D : GDirs) { bEdge |= !IsHall(P + D); }
+				for (int32 dy = -1; dy <= 1 && !bEdge; ++dy) for (int32 dx = -1; dx <= 1; ++dx) { bEdge |= !IsHall(P + FIntPoint(dx, dy)); }
+				if (!bEdge) continue;
+				const int32 C = Idx(P);
+				const FVector Center((X + 0.5f) * CS, (Y + 0.5f) * CS, BalconyHeight);
+				AddBox(FloorISM, Center, FVector(CS, CS, 25.f), { C }, false);
+				for (const FIntPoint& D : GDirs)
+				{
+					const FIntPoint N = P + D;
+					if (!IsHall(N)) continue;
+					bool bNEdge = false;
+					for (int32 dy = -1; dy <= 1; ++dy) for (int32 dx = -1; dx <= 1; ++dx) { bNEdge |= !IsHall(N + FIntPoint(dx, dy)); }
+					if (bNEdge) continue; // neighbour is balcony too
+					const FVector Edge = Center + FVector(D.X, D.Y, 0) * (CS * 0.5f) + FVector(0, 0, 55.f);
+					AddBox(DoorFrameISM, Edge, D.X != 0 ? FVector(12.f, CS, 100.f) : FVector(CS, 12.f, 100.f), { C, Idx(N) }, false);
+				}
+			}
+	}
+
+	// Seat tiers in rooms (cinema): rows rising with distance from the room's south edge. Visual only.
+	if (bSeatTiersInRooms)
+	{
+		for (int32 Y = 0; Y < Height; ++Y)
+			for (int32 X = 0; X < Width; ++X)
+			{
+				const int32 C = Idx(X, Y);
+				if (CellTypes[C] != static_cast<uint8>(ELZCellType::Room)) continue;
+				int32 Depth = 0;
+				for (int32 yy = Y + 1; yy < Height && CellTypes[Idx(X, yy)] == static_cast<uint8>(ELZCellType::Room); ++yy) { ++Depth; }
+				if (Depth == 0) continue; // front row = screen side, left clear
+				for (int32 r = 0; r < 2; ++r)
+				{
+					const float Hgt = FMath::Min(40.f + 22.f * (Depth * 2 + r), 280.f);
+					AddBox(DoorFrameISM, FVector((X + 0.5f) * CS, (Y + 0.25f + 0.5f * r) * CS, Hgt * 0.5f), FVector(CS * 0.92f, 55.f, Hgt), { C }, false);
+				}
+			}
 	}
 
 	// Floor collision slab.
@@ -649,7 +899,7 @@ void ALevelZeroMazeGenerator::BuildMeshes(FRandomStream& Rng)
 	// Exit: glowing slab + trigger (step 4 wires the win screen to OnExitReached).
 	const FVector ExitCenter((ExitCell.X + 0.5f) * CS, (ExitCell.Y + 0.5f) * CS, 0.f);
 	ExitMarker->SetStaticMesh(CubeMesh);
-	ExitMarker->SetMaterial(0, ResolveMaterial(ExitMaterial, FLinearColor(0.2f, 1.f, 0.35f)));
+	ExitMarker->SetMaterial(0, ResolveMaterial(ExitM, FLinearColor(0.2f, 1.f, 0.35f)));
 	ExitMarker->SetRelativeLocation(ExitCenter + FVector(0, 0, 110.f));
 	ExitMarker->SetRelativeScale3D(FVector(0.9f, 0.9f, 2.2f));
 	ExitTrigger->SetRelativeLocation(ExitCenter + FVector(0, 0, 150.f));
@@ -657,9 +907,10 @@ void ALevelZeroMazeGenerator::BuildMeshes(FRandomStream& Rng)
 
 	// Haze shell: far enough out that distance fog has fully saturated on it.
 	FogShell->SetStaticMesh(CubeMesh);
-	FogShell->SetMaterial(0, ResolveMaterial(FogShellMaterial, FLinearColor(0.42f, 0.36f, 0.16f)));
-	FogShell->SetRelativeLocation(FVector(Width * CS * 0.5f, Height * CS * 0.5f, H * 0.5f));
-	FogShell->SetRelativeScale3D(FVector((Width * CS + 8000.f) / 100.f, (Height * CS + 8000.f) / 100.f, (H + 8000.f) / 100.f));
+	FogShell->SetMaterial(0, ResolveMaterial(ShellM, FLinearColor(0.42f, 0.36f, 0.16f)));
+	const float MaxH = GetMaxCeiling();
+	FogShell->SetRelativeLocation(FVector(Width * CS * 0.5f, Height * CS * 0.5f, MaxH * 0.5f));
+	FogShell->SetRelativeScale3D(FVector((Width * CS + 8000.f) / 100.f, (Height * CS + 8000.f) / 100.f, (MaxH + 8000.f) / 100.f));
 }
 
 void ALevelZeroMazeGenerator::SetExitMarkerVisible(bool bVisible)
@@ -676,6 +927,10 @@ UInstancedStaticMeshComponent* ALevelZeroMazeGenerator::MakePropISM(UStaticMesh*
 	ISM->SetMobility(EComponentMobility::Movable);
 	ISM->SetStaticMesh(Mesh);
 	ISM->SetCastShadow(false);
+	if (!bCollision && Theme && Mesh)
+	{
+		for (int32 i = 0; i < Mesh->GetStaticMaterials().Num(); ++i) { ISM->SetMaterial(i, GetThemedMaterial(Mesh->GetMaterial(i), true)); }
+	}
 	if (bCollision)
 	{
 		// Never streamed, so moving around never dirties the nav mesh.
@@ -701,7 +956,7 @@ void ALevelZeroMazeGenerator::BuildProps()
 	PropSummary = TEXT("props off");
 	if (!bPlaceProps || CellTypes.Num() != Width * Height) return;
 	FRandomStream R(Seed * 7919 + 1013); // independent of the layout stream
-	const float CS = CellSize, H = WallHeight, T = WallThickness;
+	const float CS = CellSize, T = WallThickness, HW = GetWallTop();
 	struct FPair { UInstancedStaticMeshComponent* Render = nullptr; UInstancedStaticMeshComponent* Coll = nullptr; };
 	TMap<UStaticMesh*, FPair> ISMs;
 	auto Add = [&](UStaticMesh* Mesh, const FTransform& Xf, const FIntPoint& Cell, bool bCollision)
@@ -766,13 +1021,14 @@ void ALevelZeroMazeGenerator::BuildProps()
 	int32 NumLights = 0;
 	if (CeilingLightMesh)
 	{
-		const float Z = H - CeilingLightMesh->GetBoundingBox().Max.Z - 0.5f;
-		for (const FIntPoint& C : LightCells) { Add(CeilingLightMesh, FTransform(FRotator::ZeroRotator, CellCenter(C) + FVector(0, 0, Z)), C, false); ++NumLights; }
+		const float LS = FMath::Max(LightFixtureScale, 0.1f);
+		const float Drop = CeilingLightMesh->GetBoundingBox().Max.Z * LS + 0.5f;
+		for (const FIntPoint& C : LightCells) { Add(CeilingLightMesh, FTransform(FRotator::ZeroRotator, CellCenter(C) + FVector(0, 0, GetCellCeiling(Idx(C)) - Drop), FVector(LS)), C, false); ++NumLights; }
 		// Dead fixtures: same panel, own ISM with a dimmed, non-glowing material (could flicker later).
 		if (DeadLightCells.Num() > 0)
 		{
 			UInstancedStaticMeshComponent* Dead = MakePropISM(CeilingLightMesh, false);
-			if (UMaterialInterface* Base = CeilingLightMesh->GetMaterial(0))
+			if (UMaterialInterface* Base = GetThemedMaterial(CeilingLightMesh->GetMaterial(0), true))
 			{
 				UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Base, this);
 				MID->SetScalarParameterValue(TEXT("Glow"), 0.f);
@@ -781,7 +1037,7 @@ void ALevelZeroMazeGenerator::BuildProps()
 			}
 			for (const FIntPoint& C : DeadLightCells)
 			{
-				const FTransform Xf(FRotator::ZeroRotator, CellCenter(C) + FVector(0, 0, Z));
+				const FTransform Xf(FRotator::ZeroRotator, CellCenter(C) + FVector(0, 0, GetCellCeiling(Idx(C)) - Drop), FVector(LS));
 				FInstanceRef Ref; Ref.Comp = Dead; Ref.Index = Dead->AddInstance(Xf); Ref.Xf = Xf; Ref.Cells[0] = Idx(C); Ref.NumCells = 1;
 				Instances.Add(Ref); ++NumPropInstances;
 			}
@@ -790,7 +1046,8 @@ void ALevelZeroMazeGenerator::BuildProps()
 
 	// 2. Wall vents high on a few closed walls.
 	int32 NumVents = 0;
-	if (WallVentMesh)
+	const float VentZ = WallVentMesh ? FMath::Min(WallVentZ, HW - WallVentMesh->GetBoundingBox().Max.Z - 15.f) : 0.f;
+	if (WallVentMesh && VentZ >= 120.f)
 	{
 		const float Lat = CS * 0.5f - HalfWidth(WallVentMesh) - 40.f;
 		for (int32 Y = 0; Y < Height; ++Y)
@@ -800,7 +1057,7 @@ void ALevelZeroMazeGenerator::BuildProps()
 					const FIntPoint C(X, Y);
 					if (Closed(C, GDirs[k]) && R.FRand() < WallVentChance)
 					{
-						Add(WallVentMesh, WallXf(WallVentMesh, C, GDirs[k], R.FRandRange(-Lat, Lat), WallVentZ, 0.f), C, false);
+						Add(WallVentMesh, WallXf(WallVentMesh, C, GDirs[k], R.FRandRange(-Lat, Lat), VentZ, 0.f), C, false);
 						UsedWalls.Add(Idx(C) * 4 + k);
 						++NumVents;
 					}
@@ -818,16 +1075,16 @@ void ALevelZeroMazeGenerator::BuildProps()
 			for (int32 X = 0; X < Width; ++X)
 			{
 				const FIntPoint C(X, Y);
-				if (CellTypes[Idx(C)] != static_cast<uint8>(ELZCellType::Corridor) && Dist[Idx(C)] >= 10 && C != ExitCell) { Cand.Add(C); }
+				if ((bLandmarksInCorridors || CellTypes[Idx(C)] != static_cast<uint8>(ELZCellType::Corridor)) && Dist[Idx(C)] >= LandmarkMinStartDistance && C != ExitCell) { Cand.Add(C); }
 			}
 		Shuffle(Cand);
-		const int32 Want = R.RandRange(1, 2);
+		const int32 Want = R.RandRange(FMath::Max(0, LandmarksPerMesh.X), FMath::Max(LandmarksPerMesh.X, LandmarksPerMesh.Y));
 		int32 Placed = 0;
 		for (const FIntPoint& C : Cand)
 		{
 			if (Placed >= Want) break;
 			bool bFar = true;
-			for (const FIntPoint& O : Taken) { bFar &= Cheb(C, O) >= 6; }
+			for (const FIntPoint& O : Taken) { bFar &= Cheb(C, O) >= LandmarkSpacing; }
 			FIntPoint D;
 			if (!bFar || !FreeWall(C, D)) continue;
 			Add(M, WallXf(M, C, D, 0.f, 0.f, 0.f), C, true);
@@ -852,7 +1109,7 @@ void ALevelZeroMazeGenerator::BuildProps()
 				int32 Open = 0;
 				for (const FIntPoint& D : GDirs) { Open += Closed(C, D) ? 0 : 1; }
 				const bool bRoom = CellTypes[Idx(C)] == static_cast<uint8>(ELZCellType::Room);
-				if (bRoom || Open == 1) { Cand.Add(C); }
+				if (bRoom || Open == 1 || (bClustersInCorridors && Open <= 2)) { Cand.Add(C); }
 			}
 		Shuffle(Cand);
 		for (const FIntPoint& C : Cand)
@@ -863,8 +1120,8 @@ void ALevelZeroMazeGenerator::BuildProps()
 			if (!bFar) continue;
 			Taken.Add(C);
 			++NumClusters;
-			const int32 NWall = ClutterWallMeshes.Num() > 0 ? R.RandRange(1, 3) : 0;
-			const int32 NFree = ClutterFreeMeshes.Num() > 0 ? R.RandRange(0, 2) : 0;
+			const int32 NWall = ClutterWallMeshes.Num() > 0 ? R.RandRange(ClusterWallItems.X, FMath::Max(ClusterWallItems.X, ClusterWallItems.Y)) : 0;
+			const int32 NFree = ClutterFreeMeshes.Num() > 0 ? R.RandRange(ClusterFreeItems.X, FMath::Max(ClusterFreeItems.X, ClusterFreeItems.Y)) : 0;
 			if (PropViews.Num() < 12)
 			{
 				// View from the cluster cell's centre, looking at the first closed wall (where the wall pieces go).
@@ -887,7 +1144,7 @@ void ALevelZeroMazeGenerator::BuildProps()
 			{
 				UStaticMesh* M = ClutterFreeMeshes[R.RandRange(0, ClutterFreeMeshes.Num() - 1)];
 				if (!M) continue;
-				const float A = R.FRandRange(0.f, 2.f * PI), Rad = R.FRandRange(90.f, 140.f);
+				const float A = R.FRandRange(0.f, 2.f * PI), Rad = R.FRandRange(90.f, 140.f) * FMath::Max(1.f, CS / 400.f);
 				const FVector Loc = CellCenter(C) + FVector(FMath::Cos(A) * Rad, FMath::Sin(A) * Rad, 0.f);
 				Add(M, FTransform(FRotator(0.f, R.FRandRange(0.f, 360.f), 0.f), Loc), C, true);
 				++NumClutter;
@@ -908,7 +1165,7 @@ void ALevelZeroMazeGenerator::EnsureNavMeshBounds()
 	ANavMeshBoundsVolume* Volume = nullptr;
 	TActorIterator<ANavMeshBoundsVolume> It(World); // reuse the first bounds volume
 	if (It) { Volume = *It; }
-	const FVector Center = GetActorTransform().TransformPosition(FVector(Width * CellSize * 0.5f, Height * CellSize * 0.5f, WallHeight * 0.5f));
+	const FVector Center = GetActorTransform().TransformPosition(FVector(Width * CellSize * 0.5f, Height * CellSize * 0.5f, GetMaxCeiling() * 0.5f));
 	if (!Volume)
 	{
 		Volume = World->SpawnActor<ANavMeshBoundsVolume>(Center, FRotator::ZeroRotator);
@@ -918,7 +1175,7 @@ void ALevelZeroMazeGenerator::EnsureNavMeshBounds()
 	UCubeBuilder* Builder = NewObject<UCubeBuilder>();
 	Builder->X = Width * CellSize + 200.f;
 	Builder->Y = Height * CellSize + 200.f;
-	Builder->Z = WallHeight + 200.f;
+	Builder->Z = GetMaxCeiling() + 200.f;
 	UActorFactory::CreateBrushForVolumeActor(Volume, Builder);
 	Volume->SetActorLabel(TEXT("LevelZeroNavBounds"));
 	if (UNavigationSystemV1* Nav = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World))
@@ -1126,7 +1383,7 @@ FString ALevelZeroMazeGenerator::GetStatsString() const
 	}
 	return FString::Printf(TEXT("LevelZeroMaze seed=%d size=%dx%d start=(%d,%d) exit=(%d,%d) bfs=%d walls=%d doorways=%d pillars=%d roomCells=%d hallCells=%d litPanels=%d deadPanels=%d instances=%d genMs=%.1f"),
 		Seed, Width, Height, StartCell.X, StartCell.Y, ExitCell.X, ExitCell.Y, StartToExitDistance, NumWallSegments, NumDoorways,
-		PillarCorners.Num(), Rooms, Halls, NumLitPanels, NumDeadPanels, Instances.Num(), LastGenerateMs) + TEXT(" ") + PropSummary;
+		PillarCorners.Num(), Rooms, Halls, NumLitPanels, NumDeadPanels, Instances.Num(), LastGenerateMs) + TEXT(" ") + PropSummary + TEXT(" level=") + GetLevelId().ToString();
 }
 
 void ALevelZeroMazeGenerator::BeginShotModeIfRequested()

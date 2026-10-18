@@ -144,10 +144,10 @@ void ALevelZeroGameDirector::SpawnMonster()
 	ALevelZeroMonster* M = GetWorld()->SpawnActor<ALevelZeroMonster>(MonsterClass, Maze->GetCellCenterWorld(Cell, 128.f), FRotator(0.f, Facing.Yaw, 0.f), Params);
 	if (M)
 	{
-		M->BodyMaterial = MonsterBodyMaterial;
-		M->EyeMaterial = MonsterEyeMaterial;
+		M->BodyMaterial = Maze->GetThemedMaterial(MonsterBodyMaterial, false); // theme fog
+		M->EyeMaterial = Maze->GetThemedMaterial(MonsterEyeMaterial, false); // theme fog
 		M->BodyMesh = MonsterMesh;
-		M->BodyMeshMaterial = MonsterMeshMaterial;
+		M->BodyMeshMaterial = Maze->GetThemedMaterial(MonsterMeshMaterial, true); // theme fog
 		M->MeshYawOffset = MonsterMeshYawOffset;
 		M->SkeletalBodyMesh = MonsterSkeletalMesh;
 		M->RunAnim = MonsterRunAnim;
@@ -267,7 +267,18 @@ void ALevelZeroGameDirector::NotifyPlayerEscaped()
 	if (Maze) { Maze->SetExitMarkerVisible(false); } // the player is standing in the light; don't block the card
 	if (Maze && bCaptureMode) { Maze->PauseFlythrough(); }
 	ShowPanel(TEXT("ESCAPED"), FString::Printf(TEXT("time %d:%04.1f"), int32(T) / 60, FMath::Fmod(T, 60.f)), FLinearColor(0.3f, 1.f, 0.4f));
-	if (!bCaptureMode) { GetWorldTimerManager().SetTimer(RestartHandle, this, &ALevelZeroGameDirector::RestartRound, RestartDelayEscaped, false); }
+	if (!bCaptureMode) { GetWorldTimerManager().SetTimer(RestartHandle, this, &ALevelZeroGameDirector::AdvanceOrRestart, RestartDelayEscaped, false); }
+}
+
+void ALevelZeroGameDirector::AdvanceOrRestart()
+{
+	if (Maze && !Maze->NextLevel.IsNull())
+	{
+		UE_LOG(LogLevelZeroGame, Log, TEXT("Exit reached: loading next level %s"), *Maze->NextLevel.ToSoftObjectPath().ToString());
+		UGameplayStatics::OpenLevelBySoftObjectPtr(this, Maze->NextLevel);
+		return;
+	}
+	RestartRound();
 }
 
 void ALevelZeroGameDirector::RestartRound()

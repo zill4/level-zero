@@ -52,3 +52,8 @@ License for all Fab library items: **Fab Standard License** (use inside a shippe
 | PICO OpenXR (plugin) | - | Already installed in the engine |
 
 Recommendation: restyle the greybox with **Arch Vis Polish Pack 2** materials + a few **Wooden Furniture** pieces, and make the monster in **Tripo (paid plan)** from original concept art; the library has no fitting horror creature.
+
+## Step 4 (multi-level greyboxes, 2026-10-17)
+
+No new assets were added. Levels L1-L6 reuse the existing engine primitive shapes and the Tripo props already logged above (generated with Justin's Tripo account). Each level's colours come from per-level material instance parameters (DA_LZTheme_* data assets). There are no third-party downloads and no Warlok content.
+
