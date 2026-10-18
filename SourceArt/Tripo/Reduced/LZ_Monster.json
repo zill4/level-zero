@@ -1,0 +1,35 @@
+{
+  "params": {
+    "tris": 30000,
+    "tex": 2048,
+    "height": 2.6,
+    "longest": null,
+    "rot": null
+  },
+  "source": "lz_monster.glb",
+  "output": "LZ_Monster.glb",
+  "tris_before": 1981291,
+  "tris_after": 29999,
+  "dimensions_m": [
+    1.61,
+    0.667,
+    2.6
+  ],
+  "scale_applied": 2.6519,
+  "textures": [
+    {
+      "material": "tripo_material_181bdbf4-7776-493e-b326-b93cd6a8d9b5",
+      "image": "horror+creature+3d+model_basecolor.jpg",
+      "before": [
+        4096,
+        4096
+      ],
+      "after": [
+        2048,
+        2048
+      ]
+    }
+  ],
+  "seconds": 48.1,
+  "output_bytes": 5694920
+}

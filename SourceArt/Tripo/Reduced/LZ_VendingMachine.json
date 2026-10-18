@@ -1,0 +1,37 @@
+{
+  "params": {
+    "tris": 12000,
+    "tex": 1024,
+    "height": 1.85,
+    "longest": null,
+    "rot": null,
+    "card": null,
+    "blur": 1.0
+  },
+  "source": "lz_vending_machine.glb",
+  "output": "LZ_VendingMachine.glb",
+  "tris_before": 1878054,
+  "tris_after": 12000,
+  "dimensions_m": [
+    0.901,
+    0.85,
+    1.85
+  ],
+  "scale_applied": 1.8867,
+  "textures": [
+    {
+      "material": "tripo_material_9fe9c50c-ce10-4649-876d-5933604134d8",
+      "image": "lz_vending_machine_basecolor.jpg",
+      "before": [
+        4096,
+        4096
+      ],
+      "after": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "seconds": 48.7,
+  "output_bytes": 1441324
+}

@@ -2,6 +2,8 @@
 
 #include "LevelZeroMazeGenerator.h"
 #include "LevelZeroMonster.h"
+#include "Engine/SkeletalMesh.h"
+#include "Animation/AnimSequenceBase.h"
 #include "LevelZeroMonsterAI.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/StaticMeshComponent.h"
@@ -58,7 +60,7 @@ ALevelZeroGameDirector::ALevelZeroGameDirector()
 void ALevelZeroGameDirector::BeginPlay()
 {
 	Super::BeginPlay();
-	bCaptureMode = FCString::Strifind(FCommandLine::Get(), TEXT("LZFlythrough=")) != nullptr;
+	bCaptureMode = FCString::Strifind(FCommandLine::Get(), TEXT("LZFlythrough=")) != nullptr || FCString::Strifind(FCommandLine::Get(), TEXT("LZPropShots=")) != nullptr;
 	bNoMonster = FParse::Param(FCommandLine::Get(), TEXT("LZNoMonster"));
 	if (!Maze)
 	{
@@ -144,13 +146,23 @@ void ALevelZeroGameDirector::SpawnMonster()
 	{
 		M->BodyMaterial = MonsterBodyMaterial;
 		M->EyeMaterial = MonsterEyeMaterial;
+		M->BodyMesh = MonsterMesh;
+		M->BodyMeshMaterial = MonsterMeshMaterial;
+		M->MeshYawOffset = MonsterMeshYawOffset;
+		M->SkeletalBodyMesh = MonsterSkeletalMesh;
+		M->RunAnim = MonsterRunAnim;
+		M->WalkAnim = MonsterWalkAnim;
+		M->RunAnimSpeed = MonsterRunAnimSpeed;
+		M->WalkAnimSpeed = MonsterWalkAnimSpeed;
+		M->EyeOffset.Z = MonsterEyeHeight;
 		UGameplayStatics::FinishSpawningActor(M, FTransform(FRotator(0.f, Facing.Yaw, 0.f), Maze->GetCellCenterWorld(Cell, 128.f)));
 		Monster = M;
 		if (bCaptureMode)
 		{
 			if (ALevelZeroMonsterAI* AI = Cast<ALevelZeroMonsterAI>(M->GetController())) { AI->HoldPosition(60.f); } // lurk on the route until it spots the camera
 		}
-		UE_LOG(LogLevelZeroGame, Log, TEXT("Monster spawned at cell (%d,%d), %d cells from start"), Cell.X, Cell.Y, Maze->FindPath(Maze->StartCell, Cell).Num() - 1);
+		UE_LOG(LogLevelZeroGame, Log, TEXT("Monster spawned at cell (%d,%d), %d cells from start, mesh=%s"), Cell.X, Cell.Y, Maze->FindPath(Maze->StartCell, Cell).Num() - 1,
+			M->IsUsingSkeletalMesh() ? *GetNameSafe(MonsterSkeletalMesh) : M->IsUsingBodyMesh() ? *GetNameSafe(MonsterMesh) : TEXT("placeholder"));
 	}
 }
 

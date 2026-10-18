@@ -77,6 +77,16 @@ ALevelZeroMazeGenerator::ALevelZeroMazeGenerator()
 	CollisionISM->SetCastShadow(false);
 	CollisionISM->SetMobility(EComponentMobility::Movable);
 
+	LintelCollisionISM = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("LintelCollisionISM"));
+	LintelCollisionISM->SetupAttachment(Root);
+	LintelCollisionISM->SetVisibility(false);
+	LintelCollisionISM->SetHiddenInGame(true);
+	LintelCollisionISM->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+	LintelCollisionISM->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	LintelCollisionISM->SetCanEverAffectNavigation(false);
+	LintelCollisionISM->SetCastShadow(false);
+	LintelCollisionISM->SetMobility(EComponentMobility::Movable);
+
 	FloorCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("FloorCollision"));
 	FloorCollision->SetupAttachment(Root);
 	FloorCollision->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
@@ -175,6 +185,7 @@ void ALevelZeroMazeGenerator::Generate()
 	FRandomStream Rng(Seed);
 	BuildLayout(Rng);
 	BuildMeshes(Rng);
+	BuildProps();
 
 	if (PlayerStartActor)
 	{
@@ -493,11 +504,18 @@ UMaterialInterface* ALevelZeroMazeGenerator::ResolveMaterial(UMaterialInterface*
 
 void ALevelZeroMazeGenerator::ClearMeshes()
 {
-	for (UInstancedStaticMeshComponent* ISM : { FloorISM.Get(), CeilingISM.Get(), WallISM.Get(), DoorFrameISM.Get(), PillarISM.Get(), LightPanelISM.Get(), DeadPanelISM.Get(), CollisionISM.Get() })
+	for (UInstancedStaticMeshComponent* ISM : { FloorISM.Get(), CeilingISM.Get(), WallISM.Get(), DoorFrameISM.Get(), PillarISM.Get(), LightPanelISM.Get(), DeadPanelISM.Get(), CollisionISM.Get(), LintelCollisionISM.Get() })
 	{
 		ISM->ClearInstances();
 	}
 	Instances.Reset();
+	for (UInstancedStaticMeshComponent* ISM : PropISMs)
+	{
+		if (IsValid(ISM)) { ISM->DestroyComponent(); }
+	}
+	PropISMs.Reset();
+	LightCells.Reset();
+	DeadLightCells.Reset();
 }
 
 void ALevelZeroMazeGenerator::AddBox(UInstancedStaticMeshComponent* ISM, const FVector& Center, const FVector& SizeCm, std::initializer_list<int32> OwnerCells, bool bCollision)
@@ -533,11 +551,12 @@ void ALevelZeroMazeGenerator::BuildMeshes(FRandomStream& Rng)
 		{ LightPanelISM, LightPanelMaterial, FLinearColor(1.f, 0.97f, 0.8f) },
 		{ DeadPanelISM, DeadPanelMaterial, FLinearColor(0.25f, 0.24f, 0.2f) },
 		{ CollisionISM, nullptr, FLinearColor::White },
+		{ LintelCollisionISM, nullptr, FLinearColor::White },
 	};
 	for (const FSlot& S : Slots)
 	{
 		S.ISM->SetStaticMesh(CubeMesh);
-		if (S.ISM != CollisionISM)
+		if (S.ISM != CollisionISM && S.ISM != LintelCollisionISM)
 		{
 			S.ISM->SetMaterial(0, ResolveMaterial(S.Mat, S.Fallback));
 		}
@@ -559,7 +578,13 @@ void ALevelZeroMazeGenerator::BuildMeshes(FRandomStream& Rng)
 			const bool bHall = CellTypes[C] == static_cast<uint8>(ELZCellType::PillarHall);
 			const float Roll = Rng.FRand();
 			const FVector PanelSize = (Rng.FRand() < 0.5f) ? FVector(120.f, 60.f, 2.f) : FVector(60.f, 120.f, 2.f);
-			if (bHall || Roll < LitPanelChance)
+			if (CeilingLightMesh && bPlaceProps)
+			{
+				// Regular fixture grid: every cell gets a light; a few stay dead.
+				if (Roll < DeadPanelChance) { DeadLightCells.Add(FIntPoint(X, Y)); ++NumDeadPanels; }
+				else { LightCells.Add(FIntPoint(X, Y)); ++NumLitPanels; }
+			}
+			else if (bHall || Roll < LitPanelChance)
 			{
 				AddBox(LightPanelISM, Center + FVector(0, 0, H - 1.f), PanelSize, { C }, false);
 				++NumLitPanels;
@@ -590,7 +615,10 @@ void ALevelZeroMazeGenerator::BuildMeshes(FRandomStream& Rng)
 			const float PostLen = Post + T * 0.5f;
 			AddBox(DoorFrameISM, MakeCenter(SpanStart - T * 0.5f + PostLen * 0.5f, H * 0.5f), MakeSize(PostLen, H), { CellA, CellB }, true);
 			AddBox(DoorFrameISM, MakeCenter(SpanStart + CS + T * 0.5f - PostLen * 0.5f, H * 0.5f), MakeSize(PostLen, H), { CellA, CellB }, true);
-			AddBox(DoorFrameISM, MakeCenter(SpanStart + CS * 0.5f, (DoorHeight + H) * 0.5f), MakeSize(CS - 2.f * Post, H - DoorHeight), { CellA, CellB }, true);
+			const FVector LintelCenter = MakeCenter(SpanStart + CS * 0.5f, (DoorHeight + H) * 0.5f);
+			const FVector LintelSize = MakeSize(CS - 2.f * Post, H - DoorHeight);
+			AddBox(DoorFrameISM, LintelCenter, LintelSize, { CellA, CellB }, false);
+			LintelCollisionISM->AddInstance(FTransform(FQuat::Identity, LintelCenter, LintelSize / 100.f));
 		}
 	};
 	for (int32 Y = 0; Y < Height; ++Y)
@@ -637,6 +665,237 @@ void ALevelZeroMazeGenerator::BuildMeshes(FRandomStream& Rng)
 void ALevelZeroMazeGenerator::SetExitMarkerVisible(bool bVisible)
 {
 	ExitMarker->SetVisibility(bVisible);
+}
+
+// ------------------------------------------------------------------ Props
+
+UInstancedStaticMeshComponent* ALevelZeroMazeGenerator::MakePropISM(UStaticMesh* Mesh, bool bCollision)
+{
+	UInstancedStaticMeshComponent* ISM = NewObject<UInstancedStaticMeshComponent>(this, NAME_None, RF_Transient);
+	ISM->SetupAttachment(Root);
+	ISM->SetMobility(EComponentMobility::Movable);
+	ISM->SetStaticMesh(Mesh);
+	ISM->SetCastShadow(false);
+	if (bCollision)
+	{
+		// Never streamed, so moving around never dirties the nav mesh.
+		ISM->SetVisibility(false);
+		ISM->SetHiddenInGame(true);
+		ISM->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+		ISM->SetCanEverAffectNavigation(true);
+	}
+	else
+	{
+		ISM->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		ISM->SetCanEverAffectNavigation(false);
+	}
+	ISM->RegisterComponent();
+	PropISMs.Add(ISM);
+	return ISM;
+}
+
+void ALevelZeroMazeGenerator::BuildProps()
+{
+	NumPropInstances = 0;
+	PropViews.Reset();
+	PropSummary = TEXT("props off");
+	if (!bPlaceProps || CellTypes.Num() != Width * Height) return;
+	FRandomStream R(Seed * 7919 + 1013); // independent of the layout stream
+	const float CS = CellSize, H = WallHeight, T = WallThickness;
+	struct FPair { UInstancedStaticMeshComponent* Render = nullptr; UInstancedStaticMeshComponent* Coll = nullptr; };
+	TMap<UStaticMesh*, FPair> ISMs;
+	auto Add = [&](UStaticMesh* Mesh, const FTransform& Xf, const FIntPoint& Cell, bool bCollision)
+	{
+		FPair& P = ISMs.FindOrAdd(Mesh);
+		if (!P.Render) { P.Render = MakePropISM(Mesh, false); }
+		if (bCollision && !P.Coll) { P.Coll = MakePropISM(Mesh, true); }
+		FInstanceRef Ref;
+		Ref.Comp = P.Render;
+		Ref.Index = P.Render->AddInstance(Xf);
+		Ref.Xf = Xf;
+		Ref.Cells[0] = Idx(Cell);
+		Ref.NumCells = 1;
+		Instances.Add(Ref);
+		if (bCollision) { P.Coll->AddInstance(Xf); }
+		++NumPropInstances;
+	};
+	auto CellCenter = [&](const FIntPoint& C) { return FVector((C.X + 0.5f) * CS, (C.Y + 0.5f) * CS, 0.f); };
+	auto Closed = [&](const FIntPoint& C, const FIntPoint& D) { const FIntPoint N = C + D; return !IsValidCell(N) || !IsPassable(C, N); };
+	// The mesh's own front axis (local), from PropYawOffset: front = +X rotated by -PropYawOffset.
+	const FVector LocalFront = FRotator(0.f, -PropYawOffset, 0.f).RotateVector(FVector::ForwardVector);
+	const FVector LocalSide(-LocalFront.Y, LocalFront.X, 0.f);
+	auto Extent = [](UStaticMesh* M, const FVector& Axis, bool bMin)
+	{
+		const FBox B = M->GetBoundingBox();
+		float V = bMin ? FLT_MAX : -FLT_MAX;
+		for (int32 i = 0; i < 8; ++i)
+		{
+			const FVector P((i & 1) ? B.Max.X : B.Min.X, (i & 2) ? B.Max.Y : B.Min.Y, 0.f);
+			const float d = FVector::DotProduct(P, Axis);
+			V = bMin ? FMath::Min(V, d) : FMath::Max(V, d);
+		}
+		return V;
+	};
+	auto HalfWidth = [&](UStaticMesh* M) { return FMath::Max(FMath::Abs(Extent(M, LocalSide, true)), FMath::Abs(Extent(M, LocalSide, false))); };
+	// Back of the mesh against the wall face, front into the cell. Meshes are pivoted at the bottom centre.
+	auto WallXf = [&](UStaticMesh* M, const FIntPoint& C, const FIntPoint& D, float Lateral, float Z, float YawJitter)
+	{
+		const float Back = -Extent(M, LocalFront, true); // pivot -> back face
+		const FVector Dir(D.X, D.Y, 0.f), Side(-D.Y, D.X, 0.f);
+		const FVector Loc = CellCenter(C) + Dir * (CS * 0.5f - T * 0.5f - Back - 3.f) + Side * Lateral + FVector(0, 0, Z);
+		const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(-float(D.Y), -float(D.X))) + PropYawOffset + YawJitter;
+		return FTransform(FRotator(0.f, Yaw, 0.f), Loc);
+	};
+	const TArray<int32> Dist = BFS(StartCell);
+	TSet<int32> UsedWalls; // Idx * 4 + dir
+	auto DirIndex = [](const FIntPoint& D) { for (int32 i = 0; i < 4; ++i) if (GDirs[i] == D) return i; return 0; };
+	auto FreeWall = [&](const FIntPoint& C, FIntPoint& OutDir) -> bool
+	{
+		int32 Order[4] = { 0, 1, 2, 3 };
+		for (int32 i = 3; i > 0; --i) { Swap(Order[i], Order[R.RandRange(0, i)]); }
+		for (int32 k : Order)
+		{
+			if (Closed(C, GDirs[k]) && !UsedWalls.Contains(Idx(C) * 4 + k)) { OutDir = GDirs[k]; return true; }
+		}
+		return false;
+	};
+	auto Shuffle = [&](TArray<FIntPoint>& A) { for (int32 i = A.Num() - 1; i > 0; --i) { A.Swap(i, R.RandRange(0, i)); } };
+	auto Cheb = [](const FIntPoint& A, const FIntPoint& B) { return FMath::Max(FMath::Abs(A.X - B.X), FMath::Abs(A.Y - B.Y)); };
+
+	// 1. Ceiling fixtures on the regular grid (top flush with the ceiling).
+	int32 NumLights = 0;
+	if (CeilingLightMesh)
+	{
+		const float Z = H - CeilingLightMesh->GetBoundingBox().Max.Z - 0.5f;
+		for (const FIntPoint& C : LightCells) { Add(CeilingLightMesh, FTransform(FRotator::ZeroRotator, CellCenter(C) + FVector(0, 0, Z)), C, false); ++NumLights; }
+		// Dead fixtures: same panel, own ISM with a dimmed, non-glowing material (could flicker later).
+		if (DeadLightCells.Num() > 0)
+		{
+			UInstancedStaticMeshComponent* Dead = MakePropISM(CeilingLightMesh, false);
+			if (UMaterialInterface* Base = CeilingLightMesh->GetMaterial(0))
+			{
+				UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(Base, this);
+				MID->SetScalarParameterValue(TEXT("Glow"), 0.f);
+				MID->SetVectorParameterValue(TEXT("Tint"), FLinearColor(0.35f, 0.34f, 0.3f));
+				Dead->SetMaterial(0, MID);
+			}
+			for (const FIntPoint& C : DeadLightCells)
+			{
+				const FTransform Xf(FRotator::ZeroRotator, CellCenter(C) + FVector(0, 0, Z));
+				FInstanceRef Ref; Ref.Comp = Dead; Ref.Index = Dead->AddInstance(Xf); Ref.Xf = Xf; Ref.Cells[0] = Idx(C); Ref.NumCells = 1;
+				Instances.Add(Ref); ++NumPropInstances;
+			}
+		}
+	}
+
+	// 2. Wall vents high on a few closed walls.
+	int32 NumVents = 0;
+	if (WallVentMesh)
+	{
+		const float Lat = CS * 0.5f - HalfWidth(WallVentMesh) - 40.f;
+		for (int32 Y = 0; Y < Height; ++Y)
+			for (int32 X = 0; X < Width; ++X)
+				for (int32 k = 0; k < 4; ++k)
+				{
+					const FIntPoint C(X, Y);
+					if (Closed(C, GDirs[k]) && R.FRand() < WallVentChance)
+					{
+						Add(WallVentMesh, WallXf(WallVentMesh, C, GDirs[k], R.FRandRange(-Lat, Lat), WallVentZ, 0.f), C, false);
+						UsedWalls.Add(Idx(C) * 4 + k);
+						++NumVents;
+					}
+				}
+	}
+
+	// 3. Landmarks: rare set pieces in rooms/halls far from the start.
+	TArray<FIntPoint> Taken;
+	int32 NumLandmarks = 0;
+	for (UStaticMesh* M : LandmarkMeshes)
+	{
+		if (!M) continue;
+		TArray<FIntPoint> Cand;
+		for (int32 Y = 0; Y < Height; ++Y)
+			for (int32 X = 0; X < Width; ++X)
+			{
+				const FIntPoint C(X, Y);
+				if (CellTypes[Idx(C)] != static_cast<uint8>(ELZCellType::Corridor) && Dist[Idx(C)] >= 10 && C != ExitCell) { Cand.Add(C); }
+			}
+		Shuffle(Cand);
+		const int32 Want = R.RandRange(1, 2);
+		int32 Placed = 0;
+		for (const FIntPoint& C : Cand)
+		{
+			if (Placed >= Want) break;
+			bool bFar = true;
+			for (const FIntPoint& O : Taken) { bFar &= Cheb(C, O) >= 6; }
+			FIntPoint D;
+			if (!bFar || !FreeWall(C, D)) continue;
+			Add(M, WallXf(M, C, D, 0.f, 0.f, 0.f), C, true);
+			PropViews.Add({ CellCenter(C) - FVector(D.X, D.Y, 0) * 150.f + FVector(0, 0, 165.f), WallXf(M, C, D, 0.f, 0.f, 0.f).GetLocation() + FVector(0, 0, 90.f) });
+			UsedWalls.Add(Idx(C) * 4 + DirIndex(D));
+			Taken.Add(C);
+			++Placed;
+			++NumLandmarks;
+		}
+	}
+
+	// 4. Abandoned-office clusters in rooms and dead ends.
+	int32 NumClutter = 0, NumClusters = 0;
+	if (ClutterWallMeshes.Num() > 0 || ClutterFreeMeshes.Num() > 0)
+	{
+		TArray<FIntPoint> Cand;
+		for (int32 Y = 0; Y < Height; ++Y)
+			for (int32 X = 0; X < Width; ++X)
+			{
+				const FIntPoint C(X, Y);
+				if (C == StartCell || C == ExitCell || Dist[Idx(C)] < 3) continue;
+				int32 Open = 0;
+				for (const FIntPoint& D : GDirs) { Open += Closed(C, D) ? 0 : 1; }
+				const bool bRoom = CellTypes[Idx(C)] == static_cast<uint8>(ELZCellType::Room);
+				if (bRoom || Open == 1) { Cand.Add(C); }
+			}
+		Shuffle(Cand);
+		for (const FIntPoint& C : Cand)
+		{
+			if (NumClusters >= NumClutterClusters) break;
+			bool bFar = true;
+			for (const FIntPoint& O : Taken) { bFar &= Cheb(C, O) >= 3; }
+			if (!bFar) continue;
+			Taken.Add(C);
+			++NumClusters;
+			const int32 NWall = ClutterWallMeshes.Num() > 0 ? R.RandRange(1, 3) : 0;
+			const int32 NFree = ClutterFreeMeshes.Num() > 0 ? R.RandRange(0, 2) : 0;
+			if (PropViews.Num() < 12)
+			{
+				// View from the cluster cell's centre, looking at the first closed wall (where the wall pieces go).
+				for (const FIntPoint& D : GDirs)
+				{
+					if (Closed(C, D)) { PropViews.Add({ CellCenter(C) - FVector(D.X, D.Y, 0) * 150.f + FVector(0, 0, 165.f), CellCenter(C) + FVector(D.X, D.Y, 0) * 120.f + FVector(0, 0, 50.f) }); break; }
+				}
+			}
+			for (int32 i = 0; i < NWall; ++i)
+			{
+				UStaticMesh* M = ClutterWallMeshes[R.RandRange(0, ClutterWallMeshes.Num() - 1)];
+				FIntPoint D;
+				if (!M || !FreeWall(C, D)) break;
+				const float Lat = FMath::Max(CS * 0.5f - T * 0.5f - HalfWidth(M) - 70.f, 0.f);
+				Add(M, WallXf(M, C, D, R.FRandRange(-Lat, Lat), 0.f, R.FRandRange(-6.f, 6.f)), C, true);
+				UsedWalls.Add(Idx(C) * 4 + DirIndex(D));
+				++NumClutter;
+			}
+			for (int32 i = 0; i < NFree; ++i)
+			{
+				UStaticMesh* M = ClutterFreeMeshes[R.RandRange(0, ClutterFreeMeshes.Num() - 1)];
+				if (!M) continue;
+				const float A = R.FRandRange(0.f, 2.f * PI), Rad = R.FRandRange(90.f, 140.f);
+				const FVector Loc = CellCenter(C) + FVector(FMath::Cos(A) * Rad, FMath::Sin(A) * Rad, 0.f);
+				Add(M, FTransform(FRotator(0.f, R.FRandRange(0.f, 360.f), 0.f), Loc), C, true);
+				++NumClutter;
+			}
+		}
+	}
+	PropSummary = FString::Printf(TEXT("props: lights=%d vents=%d clusters=%d clutter=%d landmarks=%d instances=%d meshes=%d"),
+		NumLights, NumVents, NumClusters, NumClutter, NumLandmarks, NumPropInstances, ISMs.Num());
 }
 
 // ------------------------------------------------------------------ Navigation
@@ -867,12 +1126,27 @@ FString ALevelZeroMazeGenerator::GetStatsString() const
 	}
 	return FString::Printf(TEXT("LevelZeroMaze seed=%d size=%dx%d start=(%d,%d) exit=(%d,%d) bfs=%d walls=%d doorways=%d pillars=%d roomCells=%d hallCells=%d litPanels=%d deadPanels=%d instances=%d genMs=%.1f"),
 		Seed, Width, Height, StartCell.X, StartCell.Y, ExitCell.X, ExitCell.Y, StartToExitDistance, NumWallSegments, NumDoorways,
-		PillarCorners.Num(), Rooms, Halls, NumLitPanels, NumDeadPanels, Instances.Num(), LastGenerateMs);
+		PillarCorners.Num(), Rooms, Halls, NumLitPanels, NumDeadPanels, Instances.Num(), LastGenerateMs) + TEXT(" ") + PropSummary;
 }
 
 void ALevelZeroMazeGenerator::BeginShotModeIfRequested()
 {
 	FString Path;
+	if (FParse::Value(FCommandLine::Get(), TEXT("LZPropShots="), FlyDir) && PropViews.Num() > 0)
+	{
+		bPropShots = true;
+		PropShotIndex = PropShotHold = 0;
+		FlyPoints = { PropViews[0].Key, PropViews[0].Value };
+		FApp::SetUseFixedTimeStep(true);
+		FApp::SetFixedDeltaTime(1.0 / 30.0);
+		SetActorTickInterval(0.f);
+		bShotTopDown = false;
+		ShotPhase = 0;
+		ShotElapsed = ShotQuietTime = 0.f;
+		GetWorldTimerManager().SetTimer(ShotTimer, this, &ALevelZeroMazeGenerator::TickShotMode, 0.5f, true, 1.0f);
+		UE_LOG(LogLevelZeroMaze, Log, TEXT("Prop shot mode: %d views -> %s"), PropViews.Num(), *FlyDir);
+		return;
+	}
 	if (FParse::Value(FCommandLine::Get(), TEXT("LZFlythrough="), FlyDir))
 	{
 		int32 Cells = 24;
@@ -1000,6 +1274,24 @@ FVector ALevelZeroMazeGenerator::SampleFly(float Distance) const
 
 void ALevelZeroMazeGenerator::TickFlythrough(float DeltaSeconds)
 {
+	if (bPropShots)
+	{
+		if (!CaptureCamera || PropShotIndex >= PropViews.Num())
+		{
+			UE_LOG(LogLevelZeroMaze, Log, TEXT("Prop shots done: %d"), PropShotIndex);
+			bFlying = false;
+			FPlatformMisc::RequestExit(false, TEXT("LevelZeroPropShots"));
+			return;
+		}
+		const TPair<FVector, FVector>& V = PropViews[PropShotIndex];
+		CaptureCamera->SetActorLocationAndRotation(V.Key, (V.Value - V.Key).Rotation());
+		if (++PropShotHold == 15) // let streaming + texture mips settle
+		{
+			FScreenshotRequest::RequestScreenshot(FlyDir / FString::Printf(TEXT("prop_%02d.png"), PropShotIndex), false, false);
+		}
+		if (PropShotHold >= 18) { PropShotHold = 0; ++PropShotIndex; }
+		return;
+	}
 	float Total = 0.f;
 	for (int32 i = 0; i + 1 < FlyPoints.Num(); ++i) { Total += FVector::Dist(FlyPoints[i], FlyPoints[i + 1]); }
 	const bool bOutOfFrames = FlyMaxFrames > 0 && FlyFrame >= FlyMaxFrames;

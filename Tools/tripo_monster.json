@@ -1,0 +1,19 @@
+{
+  "_comment": "Level Zero monster. Primary: rigged Tripo FBX (retopo, Mixamo skeleton) -> Tools/tripo_rig_prep.py (in-place clips, base colour only) -> SK_/SKEL_/A_ assets. Run with --assign-monster to wire it into Level0's director. Static fallback: tripo_monster_static.json. yaw -90: Interchange's skeletal glTF import faces +Y (like the UE mannequin).",
+  "assets": [
+    {
+      "name": "LZ_MonsterRig",
+      "type": "rig",
+      "fbx": "SourceArt/Tripo/Rigged/lz_monster_rigged/lz_monster_rigged.fbx",
+      "dest": "/Game/LevelZero/Monster",
+      "tex": 2048,
+      "tint": "0.86,0.88,0.94",
+      "desat": 0.45,
+      "ambient": 0.5,
+      "bounce": 0.55,
+      "up": 0.08,
+      "yaw": -90,
+      "eye_height": 243
+    }
+  ]
+}

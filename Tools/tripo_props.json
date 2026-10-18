@@ -1,0 +1,84 @@
+{
+  "_comment": "Tripo props (private Max-plan generations). Run: UnrealEditor-Cmd.exe LevelZero.uproject -run=pythonscript -script=\"Tools/import_tripo.py --manifest Tools/tripo_props.json\". Missing files are skipped. height = real-world height (m); longest = longest side (m) for flat things; rot = 'x,y,z' degrees fix applied in Blender (front must face Blender -Y = UE +X, upright Z). Reduced GLBs + previews land in SourceArt/Tripo/Reduced/. card = 'wall'|'ceiling': flush-mounted prop baked to a single textured quad (2 tris). blur = px box blur on the base colour (soften pseudo-text).",
+  "defaults": {
+    "dest": "/Game/LevelZero/Props",
+    "tex": 1024,
+    "lods": "0.5,0.25",
+    "collision": "box"
+  },
+  "assets": [
+    {
+      "name": "LZ_CeilingLight",
+      "glb": "SourceArt/Tripo/Props/lz_ceiling_light.glb",
+      "longest": 1.2,
+      "collision": "none",
+      "lods": "",
+      "glow": 2.2,
+      "card": "ceiling"
+    },
+    {
+      "name": "LZ_WallVent",
+      "glb": "SourceArt/Tripo/Props/lz_wall_vent.glb",
+      "longest": 0.6,
+      "collision": "none",
+      "lods": "",
+      "card": "wall"
+    },
+    {
+      "name": "LZ_OfficeChair",
+      "glb": "SourceArt/Tripo/Props/lz_office_chair.glb",
+      "height": 1.0,
+      "tris": 6000
+    },
+    {
+      "name": "LZ_Boxes",
+      "glb": "SourceArt/Tripo/Props/lz_boxes.glb",
+      "height": 0.7,
+      "tris": 3000
+    },
+    {
+      "name": "LZ_WetFloorSign",
+      "glb": "SourceArt/Tripo/Props/lz_wet_floor_sign.glb",
+      "height": 0.65,
+      "tris": 3000
+    },
+    {
+      "name": "LZ_FilingCabinet",
+      "glb": "SourceArt/Tripo/Props/lz_filing_cabinet.glb",
+      "height": 1.3,
+      "tris": 5000
+    },
+    {
+      "name": "LZ_WaterCooler",
+      "glb": "SourceArt/Tripo/Props/lz_water_cooler.glb",
+      "height": 1.3,
+      "tris": 5000
+    },
+    {
+      "name": "LZ_CRTCart",
+      "glb": "SourceArt/Tripo/Props/lz_crt_cart.glb",
+      "height": 1.4,
+      "tris": 9000,
+      "tex": 2048,
+      "glow": 0.2
+    },
+    {
+      "name": "LZ_VendingMachine",
+      "glb": "SourceArt/Tripo/Props/lz_vending_machine.glb",
+      "height": 1.85,
+      "tris": 12000,
+      "tex": 1024,
+      "glow": 0.25,
+      "desat": 0.25,
+      "blur": 1.0
+    },
+    {
+      "name": "LZ_ArcadeCabinet",
+      "glb": "SourceArt/Tripo/Props/lz_arcade_cabinet.glb",
+      "height": 1.75,
+      "tris": 12000,
+      "tex": 2048,
+      "glow": 0.3
+    }
+  ]
+}

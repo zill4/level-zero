@@ -1,0 +1,35 @@
+{
+  "params": {
+    "tris": 12000,
+    "tex": 2048,
+    "height": 1.75,
+    "longest": null,
+    "rot": null
+  },
+  "source": "lz_arcade_cabinet.glb",
+  "output": "LZ_ArcadeCabinet.glb",
+  "tris_before": 1902521,
+  "tris_after": 11999,
+  "dimensions_m": [
+    0.841,
+    0.986,
+    1.75
+  ],
+  "scale_applied": 1.7851,
+  "textures": [
+    {
+      "material": "tripo_material_d710ce85-c359-4ff6-b4ea-93eb4f97e7be",
+      "image": "lz_arcade_cabinet_basecolor.jpg",
+      "before": [
+        4096,
+        4096
+      ],
+      "after": [
+        2048,
+        2048
+      ]
+    }
+  ],
+  "seconds": 54.5,
+  "output_bytes": 4403880
+}

@@ -1,0 +1,35 @@
+{
+  "params": {
+    "tris": 3000,
+    "tex": 1024,
+    "height": 0.7,
+    "longest": null,
+    "rot": null
+  },
+  "source": "lz_boxes.glb",
+  "output": "LZ_Boxes.glb",
+  "tris_before": 1962206,
+  "tris_after": 3000,
+  "dimensions_m": [
+    0.407,
+    0.404,
+    0.7
+  ],
+  "scale_applied": 0.7143,
+  "textures": [
+    {
+      "material": "tripo_material_4bd587f4-b445-44fb-a901-108779357ed3",
+      "image": "lz_boxes_basecolor.jpg",
+      "before": [
+        4096,
+        4096
+      ],
+      "after": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "seconds": 51.4,
+  "output_bytes": 1394012
+}

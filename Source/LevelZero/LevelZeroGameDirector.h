@@ -10,6 +10,9 @@ class ALevelZeroMonster;
 class UTextRenderComponent;
 class UStaticMeshComponent;
 class UMaterialInterface;
+class UStaticMesh;
+class USkeletalMesh;
+class UAnimSequenceBase;
 
 UENUM(BlueprintType)
 enum class ELZRoundState : uint8
@@ -39,6 +42,37 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Director|Monster")
 	TObjectPtr<UMaterialInterface> MonsterEyeMaterial;
+
+	/** Production monster mesh (Tripo, reduced). Empty = primitive placeholder. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Director|Monster")
+	TObjectPtr<UStaticMesh> MonsterMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Director|Monster")
+	TObjectPtr<UMaterialInterface> MonsterMeshMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Director|Monster")
+	float MonsterMeshYawOffset = 0.f;
+
+	/** Rigged monster (preferred over MonsterMesh). Made by Tools/import_tripo_rig.py. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Monster")
+	TObjectPtr<USkeletalMesh> MonsterSkeletalMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Monster")
+	TObjectPtr<UAnimSequenceBase> MonsterRunAnim;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Monster")
+	TObjectPtr<UAnimSequenceBase> MonsterWalkAnim;
+
+	/** Authored ground speed of the clips in body heights per second, from the import's root-motion analysis. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Monster")
+	float MonsterRunAnimSpeed = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Monster")
+	float MonsterWalkAnimSpeed = 0.f;
+
+	/** Eye height above the feet (cm) for the production mesh. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Monster")
+	float MonsterEyeHeight = 235.f;
 
 	/** Monster spawns at least this many BFS cells away from the start. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Director|Monster")

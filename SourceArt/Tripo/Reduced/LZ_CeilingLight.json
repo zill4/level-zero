@@ -1,0 +1,38 @@
+{
+  "params": {
+    "tris": 20000,
+    "tex": 1024,
+    "height": null,
+    "longest": 1.2,
+    "rot": null,
+    "card": "ceiling",
+    "blur": null,
+    "card_v": 2
+  },
+  "source": "lz_ceiling_light.glb",
+  "output": "LZ_CeilingLight.glb",
+  "tris_before": 1900766,
+  "tris_after": 2,
+  "dimensions_m": [
+    1.2,
+    0.604,
+    0.0
+  ],
+  "scale_applied": 1.3054,
+  "textures": [
+    {
+      "material": "LZ_CeilingLight_card",
+      "image": "LZ_CeilingLight_card.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "seconds": 9.8,
+  "output_bytes": 1094592
+}

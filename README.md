@@ -69,10 +69,11 @@ Not in V1: story, multiple levels, collectibles, monster variants, save system.
 - [x] `ALevelZeroMonster` + `ALevelZeroMonsterAI`: placeholder silhouette; Wander / Investigate (noise) / Chase (sight) / Search -> give up after 4 s out of sight
 - [x] Player noise from head movement (walk quiet 6 m, sprint loud 24 m, teleport landing 10 m) via `ALevelZeroGameDirector`
 - [x] Caught + Escaped screens (world-space card that lazily follows the head), auto-restart
-- [ ] Swap the placeholder monster for the Tripo model (keep capsule 34 x 125)
+- [x] Swap the placeholder monster for the Tripo model (keep capsule 34 x 125)
 - [ ] EN/ZH localization (Localization Dashboard, Noto Sans SC OFL font)
 - [ ] Comfort: vignette default on, snap turn default, teleport option, recenter
-- [ ] Tripo concept -> monster mesh (< 15k tris), retopo, rig, idle/walk/run/lunge
+- [x] Tripo monster: retopo (19.5k tris) + rig + run clip
+- [ ] Monster idle/walk/lunge clips (the FBX only has a run take); LODs
 - [ ] First APK on a real PICO headset; profile to a locked 72 fps
 - [ ] Capture V1 delivery clip
 
@@ -88,3 +89,35 @@ Not in V1: story, multiple levels, collectibles, monster variants, save system.
 - **Monster** (`LevelZeroMonster.*`, `LevelZeroMonsterAI.*`): 2.6 m primitive silhouette (capsule r34 / hh125, matches the default nav agent), pale eyes. Speeds 140 wander / 220 investigate / 330 chase. Sight: 20 m, 70 degree half-cone (or within 3.5 m), line trace at about 1.65 m. Loses the player after 4 s out of sight, searches the last known spot, then wanders. Falls back to the maze cell graph if a nav move fails.
 - **Round flow** (`LevelZeroGameDirector.*`): spawns the monster at least 14 BFS cells from the start, turns head speed into noise, catch within 95 cm, exit within 0.45 cell; caught (red) / escaped (green, with time) card 1.2 m ahead; restarts after 5 s / 8 s.
 - **Captures:** `-LZFlythrough=<dir> -LZFlyCells=40 -LZFlySpeed=150 -LZFlyFrames=900 -LZMonsterCell=14` puts the monster on the route (it holds position until it spots the camera). `-LZNoMonster` tests the exit/win path. The round starts on the first recorded frame.
+
+## Step 3a: Tripo monster + props (2026-10-17)
+- **Pipeline:** `Tools/import_tripo.py` (UE Python; runs Blender headless):
+  - **Static props:** `GLB → Tools/tripo_reduce.py` (join, weld, decimate to a tri budget, scale, bottom-centre pivot). It keeps only the base colour (resized to 1k/2k), then imports into `/Game/LevelZero/Props` with `SM_`, `T_*_BaseColor` and `MI_` (parent `M_LZ_TripoUnlit`). No Nanite; box collision.
+  - `card: wall|ceiling` bakes flush-mounted props (vent, light panel) to a single textured quad. `blur` softens label pseudo-text.
+  - **Rigged monster:** `"type": "rig"`, FBX → `Tools/tripo_rig_prep.py`:
+    - Splits the take(s) into clips by hips speed.
+    - Removes root motion (linear detrend of the hips' travel, which keeps the bob and sway) and normalises the armature scale.
+    - Exports GLB, then UE (Interchange) imports into `/Game/LevelZero/Monster/Rig/LZ_MonsterRig/` (`LZ_MonsterRig`, `_Skeleton`, `_PhysicsAsset`, `_Anim` = run clip, root motion off). `MI_LZ_MonsterRig` sits in `/Game/LevelZero/Monster/`. Rig yaw is -90 (Interchange imports Tripo meshes facing +Y).
+  - Manifests: `Tools/tripo_monster.json` (rig, `--assign-monster`), `Tools/tripo_monster_static.json` (fallback) and `Tools/tripo_props.json`. Use `--only A,B` to re-import some assets.
+  - Originals stay in `SourceArt/Tripo/` (LFS, not packaged). Reduced GLBs, stats JSON and previews go to `SourceArt/Tripo/Reduced/`.
+  ```
+  UnrealEditor-Cmd.exe LevelZero.uproject -run=pythonscript "-script=Tools/import_tripo.py --manifest Tools/tripo_monster.json --assign-monster"
+  UnrealEditor-Cmd.exe LevelZero.uproject -run=pythonscript "-script=Tools/import_tripo.py --manifest Tools/tripo_props.json"
+  ```
+- **Monster:** `ALevelZeroMonster` picks the rigged mesh, then the static mesh, then the primitive placeholder. The capsule (34/125) and nav are unchanged. The mesh is scaled to `TargetHeight` = 260 cm, with its feet at the capsule bottom.
+  - **Animation:** single-node playback driven by velocity. It walks while wandering or investigating and runs while chasing. The play rate is matched to speed (clip speed in body heights per second) times `WalkPlayRate` 0.8 / `RunPlayRate` 1.1, clamped to at least `MinPlayRate`. The FBX only has a run cycle, so the walk is the run slowed down; a `WalkAnim` can be dropped in later.
+  - **Eyes:** pale glowing eyes ride the `Head` bone.
+  - **Lintels:** a procedural duck under door lintels (door lintels are pawn-transparent `LintelCollisionISM`, so the 2.5 m capsule fits 2.3 m doors). Procedural bob, sway and lean only apply to the static fallback.
+  - The director carries the wiring (`MonsterSkeletalMesh`, `MonsterRunAnim`, `MonsterWalkAnim`, speeds, eye height, yaw). Swapping the model means re-running the import.
+- **Props:** `ALevelZeroMazeGenerator` places Tripo props with their own seeded stream (layout unchanged, deterministic per seed, checked in verify).
+  - **Ceiling lights:** one light fixture per cell on the 4 m grid (replacing the emissive boxes; about 8% dead panels).
+  - **Vents:** about 5% of closed walls.
+  - **Clutter:** 16 clusters in rooms and dead ends (wall pieces against walls; chairs and wet-floor signs at least 90 cm off the cell centre).
+  - **Landmarks:** 1–2 vending machines and arcade cabinets, at BFS ≥ 10 from the start.
+  - **Instancing:** one ISM per mesh, with render instances streamed with the tiles. Collision lives in hidden non-streamed ISMs, so the nav mesh routes around props and streaming never dirties it. Start, exit and nearby cells stay clear.
+- **Known limits (step 3a):**
+  - No LODs. `set_lods` returns -1 and `StaticMeshEditorSubsystem` is unavailable in the `-run=pythonscript` commandlet, so props and monster are single-LOD. Tri budgets are already low (props 2-12k, monster 19.5k). Generate LODs from the editor UI later if profiling asks for it.
+  - The monster's A-pose arm span may clip door posts.
+  - Clutter is sparse (16 clusters / 23 items) by design. Raise `NumClutterClusters` for more.
+  - Not tested on a PICO device or the emulator yet (the emulator was busy with Oomi).
+- **Captures:** `-LZPropShots=<dir> -LZNoMonster` writes `prop_00..11.png` (landmarks and the first clusters).

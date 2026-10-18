@@ -1,0 +1,22 @@
+{
+  "_comment": "Static fallback monster (used only if no rig is assigned). lz_monster_lowpoly.glb = Tripo retopo (unrigged); the original hi-poly SourceArt/Tripo/lz_monster.glb also works (decimated to 30k).",
+  "assets": [
+    {
+      "name": "LZ_Monster",
+      "glb": "SourceArt/Tripo/Rigged/lz_monster_lowpoly.glb",
+      "dest": "/Game/LevelZero/Monster",
+      "tris": 30000,
+      "tex": 2048,
+      "height": 2.6,
+      "lods": "0.5,0.25",
+      "collision": "none",
+      "tint": "0.86,0.88,0.94",
+      "desat": 0.45,
+      "ambient": 0.5,
+      "bounce": 0.55,
+      "up": 0.08,
+      "height_ref": 260,
+      "yaw": -90
+    }
+  ]
+}

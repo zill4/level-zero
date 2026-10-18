@@ -1,0 +1,35 @@
+{
+  "params": {
+    "tris": 9000,
+    "tex": 2048,
+    "height": 1.4,
+    "longest": null,
+    "rot": null
+  },
+  "source": "lz_crt_cart.glb",
+  "output": "LZ_CRTCart.glb",
+  "tris_before": 1917850,
+  "tris_after": 9000,
+  "dimensions_m": [
+    0.98,
+    0.797,
+    1.4
+  ],
+  "scale_applied": 1.4277,
+  "textures": [
+    {
+      "material": "tripo_material_47b23b22-85f9-4c80-a984-db5facbd9271",
+      "image": "lz_crt_cart_basecolor.jpg",
+      "before": [
+        4096,
+        4096
+      ],
+      "after": [
+        2048,
+        2048
+      ]
+    }
+  ],
+  "seconds": 54.8,
+  "output_bytes": 4037656
+}

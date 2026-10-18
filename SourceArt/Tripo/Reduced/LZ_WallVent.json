@@ -1,0 +1,38 @@
+{
+  "params": {
+    "tris": 20000,
+    "tex": 1024,
+    "height": null,
+    "longest": 0.6,
+    "rot": null,
+    "card": "wall",
+    "blur": null,
+    "card_v": 2
+  },
+  "source": "lz_wall_vent.glb",
+  "output": "LZ_WallVent.glb",
+  "tris_before": 1852998,
+  "tris_after": 2,
+  "dimensions_m": [
+    0.6,
+    0.0,
+    0.496
+  ],
+  "scale_applied": 0.598,
+  "textures": [
+    {
+      "material": "LZ_WallVent_card",
+      "image": "LZ_WallVent_card.png",
+      "before": [
+        1024,
+        1024
+      ],
+      "after": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "seconds": 11.4,
+  "output_bytes": 1704968
+}

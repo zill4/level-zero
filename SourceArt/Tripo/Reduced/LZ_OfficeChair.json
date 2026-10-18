@@ -1,0 +1,35 @@
+{
+  "params": {
+    "tris": 6000,
+    "tex": 1024,
+    "height": 1.0,
+    "longest": null,
+    "rot": null
+  },
+  "source": "lz_office_chair.glb",
+  "output": "LZ_OfficeChair.glb",
+  "tris_before": 1954996,
+  "tris_after": 6000,
+  "dimensions_m": [
+    0.65,
+    0.596,
+    1.0
+  ],
+  "scale_applied": 1.0202,
+  "textures": [
+    {
+      "material": "tripo_material_8d6a8c86-1786-43d1-a8ab-3e0cd5b98dd6",
+      "image": "lz_office_chair_basecolor.jpg",
+      "before": [
+        4096,
+        4096
+      ],
+      "after": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "seconds": 50.4,
+  "output_bytes": 1963104
+}

@@ -1,0 +1,55 @@
+{
+  "params": {
+    "tex": 2048
+  },
+  "scale_fix": {
+    "armature_scale_was": 0.01,
+    "pose_error_m": 0.0
+  },
+  "source": "lz_monster_rigged.fbx",
+  "output": "LZ_MonsterRig.glb",
+  "fps": 24.0,
+  "tris": 19527,
+  "height_m_native": 0.9785,
+  "bones": 65,
+  "clips": [
+    {
+      "name": "Run",
+      "source_take": "Armature|walk_run|Base Layer",
+      "frames": [
+        0,
+        30
+      ],
+      "seconds": 1.25,
+      "root_speed_mps": 2.6795,
+      "root_speed_per_height": 2.738,
+      "residual_drift_m": 0.0,
+      "mean_hips_offset_m": [
+        -0.012,
+        0.042
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "image": "Diffuse Texture.002",
+      "before": [
+        2048,
+        2048
+      ],
+      "after": [
+        2048,
+        2048
+      ]
+    }
+  ],
+  "output_bytes": 8945044,
+  "seconds": 8.9,
+  "ue_assets": {
+    "skeletal_mesh": "/Game/LevelZero/Monster/Rig/LZ_MonsterRig/SkeletalMeshes/LZ_MonsterRig",
+    "material": "/Game/LevelZero/Monster/MI_LZ_MonsterRig",
+    "clips": {
+      "Run": "/Game/LevelZero/Monster/Rig/LZ_MonsterRig/SkeletalMeshes/LZ_MonsterRig_Anim"
+    }
+  }
+}

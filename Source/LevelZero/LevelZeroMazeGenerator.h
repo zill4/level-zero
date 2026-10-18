@@ -153,6 +153,51 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Visuals")
 	TObjectPtr<UMaterialInterface> FogShellMaterial;
 
+	// ---------------- Props (Tripo, instanced, seeded) ----------------
+	/** Place props at all. Placement uses its own stream derived from Seed, so the maze layout is unchanged. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	bool bPlaceProps = true;
+
+	/** One fixture per cell on the regular 4 m grid (replaces the emissive box panels; DeadPanelChance cells stay dark boxes). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	TObjectPtr<UStaticMesh> CeilingLightMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	TObjectPtr<UStaticMesh> WallVentMesh;
+
+	/** Yaw that turns a prop mesh's front to +X. Tripo GLBs (front = Blender -Y) import through Interchange facing +Y, hence -90. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	float PropYawOffset = -90.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props", meta = (ClampMin = 0, ClampMax = 1))
+	float WallVentChance = 0.05f;
+
+	/** Height of the bottom of a wall vent (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	float WallVentZ = 228.f;
+
+	/** Clutter that stands with its back to a wall (filing cabinet, water cooler, boxes, CRT cart). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	TArray<TObjectPtr<UStaticMesh>> ClutterWallMeshes;
+
+	/** Free-standing clutter (office chair, wet-floor sign), random yaw, kept 90+ cm off the cell centre. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	TArray<TObjectPtr<UStaticMesh>> ClutterFreeMeshes;
+
+	/** "Abandoned office" clusters in rooms and dead ends. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	int32 NumClutterClusters = 16;
+
+	/** Rare set pieces (vending machine, arcade cabinet): 1-2 of each, against walls in rooms/halls far from the start. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Props")
+	TArray<TObjectPtr<UStaticMesh>> LandmarkMeshes;
+
+	UFUNCTION(BlueprintPure, Category = "Maze|Props")
+	FString GetPropSummary() const { return PropSummary; }
+
+	UFUNCTION(BlueprintPure, Category = "Maze|Props")
+	int32 GetNumPropInstances() const { return NumPropInstances; }
+
 	// ---------------- Navigation ----------------
 	/** Rebuild the nav mesh (blocking) right after the maze is generated at BeginPlay. Needs a NavMeshBoundsVolume (see EnsureNavMeshBounds). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Maze|Navigation")
@@ -262,6 +307,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> CollisionISM;
 
+	/** Door lintels (above 2.3 m): block sight/camera traces but not pawns, so the 2.5 m monster capsule fits through doorways. */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UInstancedStaticMeshComponent> LintelCollisionISM;
+
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UBoxComponent> FloorCollision;
 
@@ -296,6 +345,13 @@ private:
 	TArray<bool> SouthDoor;
 	TArray<FIntPoint> PillarCorners;
 	TArray<FInstanceRef> Instances;
+	UPROPERTY(Transient) TArray<TObjectPtr<UInstancedStaticMeshComponent>> PropISMs;
+	TArray<FIntPoint> LightCells;
+	TArray<FIntPoint> DeadLightCells;
+	FString PropSummary;
+	int32 NumPropInstances = 0;
+	UInstancedStaticMeshComponent* MakePropISM(UStaticMesh* Mesh, bool bCollision);
+	void BuildProps();
 	FIntPoint LastStreamCell = FIntPoint(-9999, -9999);
 	int32 NumLitPanels = 0;
 	int32 NumDeadPanels = 0;
@@ -309,6 +365,11 @@ private:
 	bool bShotTopDown = false;
 	FString FlyDir;
 	TArray<FVector> FlyPoints;
+	// -LZPropShots=<dir>: one still per landmark / clutter cluster (camera views recorded by BuildProps).
+	TArray<TPair<FVector, FVector>> PropViews; // camera location, look-at
+	bool bPropShots = false;
+	int32 PropShotIndex = 0;
+	int32 PropShotHold = 0;
 	float FlyDistance = 0.f;
 	float FlySpeed = 160.f;
 	int32 FlyFrame = 0;

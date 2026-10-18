@@ -60,11 +60,64 @@ assert dirs[0].get_editor_property('monster_body_material') is not None, 'LZ_VER
 mcdo = unreal.get_default_object(unreal.LevelZeroMonster)
 ws, cs_, chs = (mcdo.get_editor_property(p) for p in ('wander_speed', 'investigate_speed', 'chase_speed'))
 assert ws < cs_ < chs, 'LZ_VERIFY_FAIL: monster speeds not ordered'
+cap = mcdo.get_editor_property('capsule_component')
+assert abs(cap.get_unscaled_capsule_radius() - 34.0) < 0.1 and abs(cap.get_unscaled_capsule_half_height() - 125.0) < 0.1, 'LZ_VERIFY_FAIL: monster capsule changed'
+
+# Tripo monster mesh: mobile budget.
+mesh = dirs[0].get_editor_property('monster_mesh')
+mesh_info = 'placeholder'
+if mesh:
+    lod_tris = [mesh.get_num_triangles(l) for l in range(mesh.get_num_lods())]
+    assert lod_tris[0] <= 40000, f'LZ_VERIFY_FAIL: monster LOD0 has {lod_tris[0]} tris (> 40k)'
+    assert not mesh.get_editor_property('nanite_settings').enabled, 'LZ_VERIFY_FAIL: monster mesh has Nanite on'
+    mi = dirs[0].get_editor_property('monster_mesh_material')
+    assert mi is not None, 'LZ_VERIFY_FAIL: monster mesh material missing'
+    tex = unreal.MaterialEditingLibrary.get_material_instance_texture_parameter_value(mi, 'BaseTex')
+    assert tex is not None and tex.get_editor_property('max_texture_size') in (1024, 2048), 'LZ_VERIFY_FAIL: monster texture not capped to 1k/2k'
+    size = mesh.get_bounding_box().max - mesh.get_bounding_box().min
+    mesh_info = f'{mesh.get_name()} LOD tris {lod_tris}, size {size.x:.0f}x{size.y:.0f}x{size.z:.0f} cm, tex {tex.get_name()} max {tex.get_editor_property("max_texture_size")}'
+
+# Tripo props: budgets, no Nanite, deterministic placement.
+BUDGET = {'LZ_CeilingLight': 1000, 'LZ_WallVent': 1000, 'LZ_VendingMachine': 15000, 'LZ_ArcadeCabinet': 15000, 'LZ_CRTCart': 15000}
+props = [gen.get_editor_property('ceiling_light_mesh'), gen.get_editor_property('wall_vent_mesh')] + list(gen.get_editor_property('clutter_wall_meshes')) + list(gen.get_editor_property('clutter_free_meshes')) + list(gen.get_editor_property('landmark_meshes'))
+props = [m for m in props if m]
+prop_info = []
+for m in props:
+    n = m.get_name()[3:]
+    t0 = m.get_num_triangles(0)
+    assert t0 <= BUDGET.get(n, 8000), f'LZ_VERIFY_FAIL: {n} LOD0 has {t0} tris (budget {BUDGET.get(n, 8000)})'
+    assert not m.get_editor_property('nanite_settings').enabled, f'LZ_VERIFY_FAIL: {n} has Nanite on'
+    prop_info.append(f'{n}={t0}')
+if props:
+    s1 = gen.get_prop_summary(); gen.generate(); s2 = gen.get_prop_summary()
+    assert s1 == s2, f'LZ_VERIFY_FAIL: prop placement not deterministic ({s1} vs {s2})'
+    assert gen.get_num_prop_instances() > 0, 'LZ_VERIFY_FAIL: prop meshes assigned but nothing placed'
+
+# Rigged monster: budget + clips in place.
+skm = dirs[0].get_editor_property('monster_skeletal_mesh')
+if skm:
+    run = dirs[0].get_editor_property('monster_run_anim')
+    walk = dirs[0].get_editor_property('monster_walk_anim')
+    assert run or walk, 'LZ_VERIFY_FAIL: rigged monster has no clips'
+    for a in [x for x in (run, walk) if x]:
+        assert not a.get_editor_property('enable_root_motion'), f'LZ_VERIFY_FAIL: {a.get_name()} has root motion on'
+        s_a, s_m = a.get_editor_property('skeleton'), skm.get_editor_property('skeleton')
+        assert s_a and s_m and s_a.get_path_name() == s_m.get_path_name(), f'LZ_VERIFY_FAIL: {a.get_name()} skeleton mismatch ({s_a.get_path_name() if s_a else None} vs {s_m.get_path_name() if s_m else None})'
+    mi = dirs[0].get_editor_property('monster_mesh_material')
+    assert mi is not None, 'LZ_VERIFY_FAIL: rig material missing'
+    tex = unreal.MaterialEditingLibrary.get_material_instance_texture_parameter_value(mi, 'BaseTex')
+    assert tex is not None and tex.get_editor_property('max_texture_size') in (1024, 2048), 'LZ_VERIFY_FAIL: rig texture not capped to 1k/2k'
+    mesh_info = (f'{skm.get_name()} (rig) clips run={run.get_name() if run else None} {run.get_play_length() if run else 0:.2f}s '
+                 f'walk={walk.get_name() if walk else "(run slowed)"}; speeds run={dirs[0].get_editor_property("monster_run_anim_speed"):.2f} heights/s; bounds {skm.get_bounds().box_extent * 2}; '
+                 f'tex {tex.get_name()} max {tex.get_editor_property("max_texture_size")}')
+
 aicdo = unreal.get_default_object(unreal.LevelZeroMonsterAI)
 assert aicdo.get_editor_property('lose_sight_seconds') > 1.0, 'LZ_VERIFY_FAIL: lose-sight time'
 
 gen.export_debug_ascii(unreal.Paths.project_saved_dir() + 'LevelZero/maze_ascii.txt')
 unreal.log('LZ: ' + gen.get_stats_string())
+unreal.log(f'LZ: monster mesh: {mesh_info}')
+unreal.log(f'LZ: {gen.get_prop_summary()}; prop LOD0 tris: {", ".join(prop_info) or "none"}')
 unreal.log(f'LZ: openness {openness:.2f}; nav bounds extent {extent}; monster speeds {ws}/{cs_}/{chs}')
 unreal.log(f'LZ: path start->exit {len(path)} cells; PlayerStart at {got}')
 unreal.log('LZ_VERIFY_OK')

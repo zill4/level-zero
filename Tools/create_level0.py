@@ -162,6 +162,15 @@ gen.set_editor_property('seed', SEED)
 gen.set_editor_property('player_start_actor', player_start)
 for k, v in mats.items():
     gen.set_editor_property(k, v)
+# Tripo props (made by Tools/import_tripo.py --manifest Tools/tripo_props.json); skipped if not imported.
+def _prop(n):
+    path = '/Game/LevelZero/Props/SM_' + n
+    return unreal.load_asset(path) if unreal.EditorAssetLibrary.does_asset_exist(path) else None
+gen.set_editor_property('ceiling_light_mesh', _prop('LZ_CeilingLight'))
+gen.set_editor_property('wall_vent_mesh', _prop('LZ_WallVent'))
+gen.set_editor_property('clutter_wall_meshes', [m for m in map(_prop, ['LZ_FilingCabinet', 'LZ_WaterCooler', 'LZ_Boxes', 'LZ_CRTCart']) if m])
+gen.set_editor_property('clutter_free_meshes', [m for m in map(_prop, ['LZ_OfficeChair', 'LZ_WetFloorSign']) if m])
+gen.set_editor_property('landmark_meshes', [m for m in map(_prop, ['LZ_VendingMachine', 'LZ_ArcadeCabinet']) if m])
 gen.generate()
 gen.ensure_nav_mesh_bounds()
 
@@ -170,6 +179,30 @@ director.set_actor_label('LevelZeroDirector')
 director.set_editor_property('maze', gen)
 director.set_editor_property('monster_body_material', monster_body)
 director.set_editor_property('monster_eye_material', monster_eyes)
+# Tripo monster (Tools/import_tripo.py --manifest Tools/tripo_monster.json): rigged if imported, else static, else placeholder.
+import json as _json, os as _os
+_tools = _os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_dir()), 'Tools')
+_rig_stats = _os.path.join(_tools, '..', 'SourceArt', 'Tripo', 'Reduced', 'LZ_MonsterRig.json')
+_ua = _json.load(open(_rig_stats)).get('ue_assets') if _os.path.exists(_rig_stats) else None
+if _ua and EAL.does_asset_exist(_ua['skeletal_mesh']):
+    _e = _json.load(open(_os.path.join(_tools, 'tripo_monster.json')))['assets'][0]
+    _st = _json.load(open(_rig_stats))
+    _sp = {c_['name']: c_['root_speed_per_height'] for c_ in _st['clips']}
+    director.set_editor_property('monster_skeletal_mesh', unreal.load_asset(_ua['skeletal_mesh']))
+    director.set_editor_property('monster_mesh_material', unreal.load_asset(_ua['material']))
+    for _k in ('Run', 'Walk'):
+        _p = _ua['clips'].get(_k)
+        director.set_editor_property(f'monster_{_k.lower()}_anim', unreal.load_asset(_p) if _p else None)
+        director.set_editor_property(f'monster_{_k.lower()}_anim_speed', float(_sp.get(_k, 0.0)))
+    director.set_editor_property('monster_mesh_yaw_offset', float(_e.get('yaw', 0)))
+    director.set_editor_property('monster_eye_height', float(_e.get('eye_height', 235)))
+    log('director uses the rigged Tripo monster')
+elif EAL.does_asset_exist('/Game/LevelZero/Monster/SM_LZ_Monster'):
+    _e = _json.load(open(_os.path.join(_tools, 'tripo_monster_static.json')))['assets'][0]
+    director.set_editor_property('monster_mesh', unreal.load_asset('/Game/LevelZero/Monster/SM_LZ_Monster'))
+    director.set_editor_property('monster_mesh_material', unreal.load_asset('/Game/LevelZero/Monster/MI_LZ_Monster'))
+    director.set_editor_property('monster_mesh_yaw_offset', float(_e.get('yaw', 0)))
+    log('director uses the static Tripo monster mesh')
 
 ppv = eas.spawn_actor_from_class(unreal.PostProcessVolume, unreal.Vector(0, 0, 0))
 ppv.set_actor_label('LZ_PostProcess')

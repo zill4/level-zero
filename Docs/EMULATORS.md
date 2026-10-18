@@ -37,3 +37,6 @@ Then repeat with the Store (arm64) APK.
 
 ## Step 2 check (2026-10-17 14:32 CT): skipped, emulator busy
 `emulator-5554` was relaunched by the Oomi side at 14:08 CT. `topResumedActivity` = `io.crispcode.oomi.pico/com.epicgames.unreal.GameActivity` (Oomi in the foreground; the PICO scenario provider is also resumed). Per the rule "only if no other app is in Full Space; never force-stop Oomi", the arm64 Store APK check was **not** run. Run the commands above when `dumpsys activity activities | grep topResumedActivity` shows only the PICO launcher.
+
+## Step 3a check (2026-10-17 21:52 CT): skipped, emulator busy
+`emulator-5554`: `topResumedActivity` = `io.crispcode.oomi.pico/com.epicgames.unreal.GameActivity` (Oomi in the foreground; the PICO scenario provider is also resumed). Per the rule, the arm64 Store APK (Tripo monster + props build) was **not** installed and Oomi was not stopped. Run the commands above when only the PICO launcher is resumed.
